@@ -16,3 +16,24 @@ numbers? What about converting upper case characters to lower case?
 will happen if we varied the ngram size, such as using unigrams,
 bigrams and trigrams?
 
+I believe that the lower the size of ngram, the less accurate the
+outcome would be.
+
+By simply modifying my code from using a 4-gram model to a unigram one,
+the accuracy decreased drastically from 100% to 35%. This should be
+because for a unigram language model, we would be basically counting
+the probabilty of each character in the test string appearing in the
+language.
+
+When increasing from a unigram to a bigram model, I saw a dramatic
+increase in accuracy, from 35% to 85%. This was much more significant
+than I expected as bigrams should still tend to be a little inaccurate.
+When comparing the bigram models output file to the correct one
+provided, I saw that 2 out of the 3 inaccurate language predictions
+were of 'other' language.
+
+When increasing from a bigram model to a trigram model, the accuracy
+increased further from 85% to 95%.
+
+Thus, these results support my initial belief that the larger the value
+of n, the more accurate the output would be.
