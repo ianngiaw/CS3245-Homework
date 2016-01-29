@@ -139,9 +139,9 @@ def test_LM(in_file, out_file, LM):
     test_file = file(in_file, 'r')
     output_file = file(out_file, 'w')
 
-    smoothed_model = LM[0]
-    totals = LM[1]
+    (smoothed_model, totals) = LM
 
+    line_count = 1
     for line in test_file:
         char_list = list(line.strip())
         results = []
@@ -149,23 +149,25 @@ def test_LM(in_file, out_file, LM):
             language_model = smoothed_model[language]
             numerators = []
             miss_count = 0
+            lang_total = float(totals[language])
             for i in range(0, len(char_list) - 3):
                 chars = tuple(char_list[i:i+4])
                 if chars in language_model:
                     numerators.append(language_model[chars])
                 else:
                     miss_count += 1
-            new_total = float(totals[language] + miss_count)
             if len(numerators) > 0:
-                probability = reduce(lambda x,y: x + log10(y / new_total), numerators)
-                if miss_count > 0:
-                    probability += reduce(lambda x,y: x + log10(1.0 / new_total), range(0, miss_count))
+                probability = reduce(lambda x,y: x + log10(y / lang_total), numerators)
                 if miss_count < (len(char_list) - 3) * 0.75:
                     results.append((language, probability))
         top_lang = ('other', 0)
+        print("line: " + str(line_count))
+        line_count += 1
         if len(results) > 0:
             top_lang = results[0]
+            print(top_lang)
             for result in results[1:]:
+                print(result)
                 if result[1] > top_lang[1]:
                     top_lang = result
         output_file.write(top_lang[0] + " " + line)
