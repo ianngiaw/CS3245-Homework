@@ -161,13 +161,10 @@ def test_LM(in_file, out_file, LM):
                 if miss_count < (len(char_list) - 3) * 0.75:
                     results.append((language, probability))
         top_lang = ('other', 0)
-        print("line: " + str(line_count))
         line_count += 1
         if len(results) > 0:
             top_lang = results[0]
-            print(top_lang)
             for result in results[1:]:
-                print(result)
                 if result[1] > top_lang[1]:
                     top_lang = result
         output_file.write(top_lang[0] + " " + line)
