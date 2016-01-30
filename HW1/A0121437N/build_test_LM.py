@@ -106,6 +106,24 @@ def ngrams_for_string(n, string):
     return res
 
 ########################
+# FOR ESSAY QUESTION 1 #
+########################
+# Test for token based ngram model
+# Uncomment the function below to proceed with the test
+# def ngrams_for_string(n, sentence):
+#     res = []   
+#     tokens = sentence.split(" ")
+#     import string
+#     tokens = filter(lambda x: x not in string.punctuation and x != "", tokens)
+#     for i in range(0, len(tokens) - n + 1):
+#         ngram = tuple(tokens[i : i + n])
+#         res.append(ngram)
+#     return res
+########################
+# END ESSAY QUESTION 1 #
+########################
+
+########################
 # FOR ESSAY QUESTION 3 #
 ########################
 # Test for strings stripped of numbers and punctuations

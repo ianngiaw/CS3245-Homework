@@ -5,6 +5,32 @@ Replace this file with the answers to the essay questions here.
 i.e., the gram units are characters. Do you expect token-based ngram
 models to perform better?
 
+I believe that if the data provided was large enough such that most
+words of each language could be found in the data that it would
+perform better. However, as the data provided is relatively small,
+it may not perform as well as the character-based ngrams.
+
+Below are my findings from my tests.
+
++------------+---------+--------+
+| ngram size | default | tokens |
++------------+---------+--------+
+|          1 |     45% |    85% |
++------------+---------+--------+
+|          2 |     70% |    25% |
++------------+---------+--------+
+|          3 |     90% |    15% |
++------------+---------+--------+
+|          4 |    100% |    10% |
++------------+---------+--------+
+
+As can be seen from the results, there was an inversion in the accuracy
+with respect to ngram size. In this case, the smaller the ngram size,
+the more accurate the outcome. This could be because the data provided
+was insufficient to predict every combination of words in a sentence of
+a language, thus having a large ngram size would result in a lot more
+misses (ngrams not being found in the language model).
+
 2. What do you think will happen if we provided more data for each
 category for you to build the language models? What if we only
 provided more data for Indonesian?
