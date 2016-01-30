@@ -9,8 +9,91 @@ models to perform better?
 category for you to build the language models? What if we only
 provided more data for Indonesian?
 
+If all categories were provided equal amounts of data such that the
+total count of ngrams are fairly evenly distrubuted throughout each
+of the language models, then the accuracy would increase as the 4-gram
+models would reflect the language more closely.
+
+At the moment the ngram totals for each language are as follows:
+
++------------+--------+
+| Language   | Total  |
++------------+--------+
+|      Tamil | 45,447 |
++------------+--------+
+| Indonesian | 50,581 |
++------------+--------+
+|  Malaysian | 55,861 |
++------------+--------+
+
+As can be seen from the table above, there is currently more data for
+Malaysian than Indonesian and Tamil. Thus, if more data for Indonesian
+were provided, such that the total for Indonesian were increased to be
+about equal to that of Malaysian, I believe it would increase the
+accuracy of the Indonesian 4-gram model.
+
 3. What do you think will happen if you strip out punctuations and/or
 numbers? What about converting upper case characters to lower case?
+
+I believe the removal of punctuations and numbers would result in more
+accurate predictions. However, since my code runs at 100% accuracy, I
+believe the effects can only be seen with smaller ngram sizes such as
+bigrams and trigrams.
+
+My code for the removal of punctuations and/or numbers can be found
+in the build_test_LM.py file and is preceded by the comment 'Test for
+strings stripped of numbers and punctuations'. To test the removal of
+punctuation and/or numbers, simply uncomment the statement of choice.
+
+My results from after making the changes to my code are as follows:
+
++------------+---------+---------+--------+---------+
+| ngram size | default | no punc | no num | no both |
++------------+---------+---------+--------+---------+
+|          1 |     45% |     50% |    45% |     50% |
++------------+---------+---------+--------+---------+
+|          2 |     70% |     75% |    75% |     75% |
++------------+---------+---------+--------+---------+
+|          3 |     90% |     90% |    95% |     95% |
++------------+---------+---------+--------+---------+
+|          4 |    100% |    100% |   100% |    100% |
++------------+---------+---------+--------+---------+
+
+As predicted, the removal of punctuation and/or numbers resulted in an
+increase in the accuracy of predictions. However, the increase was
+only very minute, with increases of at most 5% (which would mean only
+one additional accurate prediction), and the most accurate being when
+both punctuation and numbers are removed from the ngrams.
+
+I believe that I would see a similar but more minute increase in
+accuracy when all characters are converted to lowercase.
+
+My code for the conversion to lowercase is found in the same function
+as the that removes punctuation and/or numbers. Similarly, to test the
+conversion to lowercase, simply uncomment the statement.
+
+My results from after making the changes to my code, are as follows:
+
++------------+---------+--------+-------+------------------+
+| ngram size | default | no p&n | lower | lower and no p&n |
++------------+---------+--------+-------+------------------+
+|          1 |     45% |    50% |   45% |              60% |
++------------+---------+--------+-------+------------------+
+|          2 |     70% |    75% |   70% |              75% |
++------------+---------+--------+-------+------------------+
+|          3 |     90% |    95% |   90% |              90% |
++------------+---------+--------+-------+------------------+
+|          4 |    100% |   100% |  100% |              95% |
++------------+---------+--------+-------+------------------+
+
+Surprisingly the outcome was not as expected, not only was there no
+change in the accuracy when only characters were converted to
+lowercase, but also there was a reduction in accuracy for large ngram
+sizes (3 and 4) when coupled together with the removal of punctuation
+and numbers. However, there was a large increase in the accuracy of
+unigrams (ngram size 1) when combining the coversion to lowercase with
+the removal of punctuation and numbers, from 45% in the default
+configuration to 60%.
 
 4. We use 4-gram models in this homework assignment. What do you think
 will happen if we varied the ngram size, such as using unigrams,
@@ -20,20 +103,28 @@ I believe that the lower the size of ngram, the less accurate the
 outcome would be.
 
 By simply modifying my code from using a 4-gram model to a unigram one,
-the accuracy decreased drastically from 100% to 35%. This should be
+the accuracy decreased drastically from 100% to 45%. This should be
 because for a unigram language model, we would be basically counting
 the probabilty of each character in the test string appearing in the
 language.
 
-When increasing from a unigram to a bigram model, I saw a dramatic
-increase in accuracy, from 35% to 85%. This was much more significant
-than I expected as bigrams should still tend to be a little inaccurate.
-When comparing the bigram models output file to the correct one
-provided, I saw that 2 out of the 3 inaccurate language predictions
-were of 'other' language.
+When increasing from a unigram to a bigram model, I saw an increase in
+accuracy, from 45% to 70%. This was much more significant than I
+expected as bigrams should still tend to be a little inaccurate. When
+comparing the bigram models output file to the correct one provided,
+I saw that 2 out of the 6 inaccurate language predictions were of
+'other' language.
 
 When increasing from a bigram model to a trigram model, the accuracy
-increased further from 85% to 95%.
+increased further from 70% to 90%. One of the incorrectly predicted
+sentences was of 'other language' while the other was predicted to
+be malaysian but turned out to be indonesian, which are closely
+related languages.
 
 Thus, these results support my initial belief that the larger the value
 of n, the more accurate the output would be.
+
+My code for varying the ngram size can be found above the 'usage'
+function and is preceded by the comment 'Tests for other n-gram sizes
+for essay question 4'. To test the varying ngram sizes, simply
+uncomment your size of choice.
