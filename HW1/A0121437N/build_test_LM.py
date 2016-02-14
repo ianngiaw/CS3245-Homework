@@ -100,6 +100,7 @@ def test_LM(in_file, out_file, LM):
 def ngrams_for_string(n, string):
     """
     Converts a string into a list of ngrams based on the size provided
+    Ngrams are generated WITHOUT start and end padding
     Allows for customization of ngrams for essay questions
     """
     res = []
