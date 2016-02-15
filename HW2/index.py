@@ -4,11 +4,35 @@ import nltk
 import sys
 import getopt
 
+from os import listdir
+from os.path import isfile, join
+
+from nltk.tokenize import sent_tokenize, word_tokenize
+
+stemmer = nltk.stem.porter.PorterStemmer()
+
 def build_index(document_dir):
     """
     Builds the index
     """
-    return
+    index = {}
+    files = listdir(document_dir)
+    files.remove(".DS_Store")
+    files.sort(key=lambda f: int(f))
+    for f in files:
+        path = join(document_dir, f)
+        if isfile(path):
+            input_file = file(path, 'r')
+            for line in input_file:
+                for sent in sent_tokenize(line):
+                    for word in word_tokenize(sent):
+                        stemmed_word = stemmer.stem(word)
+                        token = stemmed_word.lower()
+                        if token not in index:
+                            index[token] = []
+                        if len(index[token]) == 0 or index[token][-1] != f:
+                            index[token].append(f)
+    return index
 
 def write_index(output_dict_file, output_post_file, index):
     """
