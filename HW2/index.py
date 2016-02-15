@@ -9,6 +9,8 @@ from os.path import isfile, join
 
 from nltk.tokenize import sent_tokenize, word_tokenize
 
+from math import sqrt
+
 stemmer = nltk.stem.porter.PorterStemmer()
 
 def build_index(document_dir):
@@ -36,9 +38,34 @@ def build_index(document_dir):
 
 def write_index(output_dict_file, output_post_file, index):
     """
-    Writes the index
+    Writes the index to the output dictionary file and postings file
     """
-    return
+    dict_file = file(output_dict_file, "w")
+    post_file = file(output_post_file, "w")
+    count_bytes = 0
+    for token in index:
+        postings = index[token]
+        postings_string = generate_postings_string(postings)
+        dict_string = token + " " + str(count_bytes) + " " + str(len(postings)) + "\n"
+        dict_file.write(dict_string)
+        post_file.write(postings_string)
+        count_bytes += len(postings_string)
+    dict_file.close()
+    post_file.close()
+
+def generate_postings_string(postings):
+    skip_gap = int(sqrt(len(postings)))
+    count = 0
+    string = ""
+    for doc_id in postings:
+        string += doc_id + " "
+        count += 1
+        if skip_gap != 1 and count % skip_gap == 1 and count + skip_gap <= len(postings):
+            # The number of bytes after the space after the skip pointer to
+            # the doc id the skip pointer is pointing to.
+            byte_gap = len(reduce(lambda x, y: x + y + " ", postings[count:count + skip_gap - 1], ""))
+            string += "*" + str(byte_gap) + " "
+    return string.strip() + "\n"
 
 def usage():
     print "usage: " + sys.argv[0] + " -i directory-of-documents -d dictionary-file -p postings-file"
