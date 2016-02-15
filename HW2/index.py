@@ -54,6 +54,15 @@ def write_index(output_dict_file, output_post_file, index):
     post_file.close()
 
 def generate_postings_string(postings):
+    """
+    Generates a string that is written to a postings file that marks skip pointers with a * character.
+    The integer of the skip pointer is the number of bytes after the space after the skip pointer to
+    the doc id that it is pointing to.
+    For example, if the following postings list is passed ['1', '2', '3', '4', '5']
+    The output string is "1 *2 2 3 *2 4 5".
+    1 is the first doc id, it has a skip pointer which points to 2 bytes after the space after the
+    skip pointer. That is, "1 *2 ^2 3 *2 4 5", 2 bytes after the ^, which points to 3.
+    """
     skip_gap = int(sqrt(len(postings)))
     count = 0
     string = ""
@@ -61,8 +70,6 @@ def generate_postings_string(postings):
         string += doc_id + " "
         count += 1
         if skip_gap != 1 and count % skip_gap == 1 and count + skip_gap <= len(postings):
-            # The number of bytes after the space after the skip pointer to
-            # the doc id the skip pointer is pointing to.
             byte_gap = len(reduce(lambda x, y: x + y + " ", postings[count:count + skip_gap - 1], ""))
             string += "*" + str(byte_gap) + " "
     return string.strip() + "\n"
