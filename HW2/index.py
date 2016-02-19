@@ -34,15 +34,17 @@ def build_index(document_dir):
                             index[token] = []
                         if len(index[token]) == 0 or index[token][-1] != f:
                             index[token].append(f)
-    return index
+    return (index, files)
 
-def write_index(output_dict_file, output_post_file, index):
+def write_index(output_dict_file, output_post_file, index, doc_ids):
     """
     Writes the index to the output dictionary file and postings file
     """
     dict_file = file(output_dict_file, "w")
     post_file = file(output_post_file, "w")
-    count_bytes = 0
+    all_ids_string = generate_postings_string(doc_ids)
+    post_file.write(all_ids_string)
+    count_bytes = len(all_ids_string)
     for token in index:
         postings = index[token]
         postings_string = generate_postings_string(postings)
@@ -96,5 +98,5 @@ if document_dir == None or output_dict_file == None or output_post_file == None:
     usage()
     sys.exit(2)
 
-index = build_index(document_dir)
-write_index(output_dict_file, output_post_file, index)
+(index, doc_ids) = build_index(document_dir)
+write_index(output_dict_file, output_post_file, index, doc_ids)
