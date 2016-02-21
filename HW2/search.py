@@ -27,6 +27,63 @@ def text_index(input_post_file, input_query_file, output_file, dictionary):
     """
     return
 
+class PostingReader:
+    """
+    PostingReader reads a posting list in a provided postings file object
+    using the byte offset provided by a dictionary.
+    """
+    def __init__(self, postings_file, byte_offset):
+        self.postings_file = postings_file
+        self.byte_offset = byte_offset
+        self.current = 0 # this is the offset that is added to the byte offset when seeking
+        self.end = False # set to true when reached end of the list (end of line)
+    def next(self):
+        """
+        Retrieves the next doc id in the postings list
+        """
+        if self.end:
+            return "END"
+        current_offset = self.current
+        self.postings_file.seek(self.byte_offset + current_offset)
+        parsed_string = self.postings_file.read(1)
+        current_offset += 1
+        is_skip = parsed_string == "*"
+        if is_skip:
+            # "*" in the postings list file indicates the number after it is a skip pointer
+            parsed_string = ""
+        while True:
+            self.postings_file.seek(self.byte_offset + current_offset)
+            next_char = self.postings_file.read(1)
+            if next_char == " ":
+                current_offset += 1
+                break
+            if next_char == "\n":
+                # End of line reached
+                self.end = True
+                break
+            parsed_string += next_char
+            current_offset += 1
+        self.current = current_offset
+        if is_skip:
+            # Returns a 3-tuple, the last being the new current if the skip pointer is used
+            skip_gap = int(parsed_string)
+            return (True, self.get_skip_value(skip_gap), self.current + skip_gap)
+        return (False, int(parsed_string))
+    def get_skip_value(self, skip_gap):
+        parsed_string = ""
+        while True:
+            self.postings_file.seek(self.byte_offset + self.current + skip_gap)
+            next_char = self.postings_file.read(1)
+            if next_char == " " or next_char == "\n":
+                break
+            parsed_string += next_char
+            skip_gap += 1
+        return int(parsed_string)
+    def skip_to(self, new_current):
+        """
+        Sets the current to the provided new_current value
+        """
+        self.current = new_current
 
 def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
