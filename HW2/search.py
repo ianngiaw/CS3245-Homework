@@ -9,7 +9,16 @@ def build_dict(input_dict_file):
     Builds the dictionary from the dictionary file.
     Returns a dictionary
     """
-    return
+    dict_file = file(input_dict_file, 'r')
+    dictionary = {}
+    for line in dict_file:
+        split_line = line.strip().split(" ")
+        token = split_line[0]
+        byte_offset = int(split_line[1])
+        freq = int(split_line[2])
+        dictionary[token] = (byte_offset, freq)
+    dict_file.close()
+    return dictionary
 
 def text_index(input_post_file, input_query_file, output_file, dictionary):
     """
