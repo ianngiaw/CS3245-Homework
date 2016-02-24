@@ -57,6 +57,7 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
                             output_queue.append(operator_stack.pop())
                         else:
                             operator_stack.pop()
+                            break
                     if len(operator_stack) > 0 and operator_stack[-1] != "(":
                         output_queue.append(operator_stack.pop())
                 else:
@@ -65,6 +66,7 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
                         operator_stack.append(word)
                     else:
                         while len(operator_stack) > 0 and operators[operator_stack[-1]] > operators[word]:
+                            print "while triggered: " + operator_stack[-1], word
                             # Pop the operator from the stack and add it to output
                             output_queue.append(operator_stack.pop())
                         operator_stack.append(word)
