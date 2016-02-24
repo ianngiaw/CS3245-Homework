@@ -42,9 +42,9 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
         # Shunting-Yard algorithm
         output_queue = []
         operator_stack = []
-        operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 4, ")": 4}
+        operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 0, ")": 0}
 
-        for word in query.strip().split():                
+        for word in nltk.tokenize.word_tokenize(query):                
             # Token is an Operator
             if word in operators:
                 # Parenthesis checks
