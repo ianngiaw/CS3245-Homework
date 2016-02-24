@@ -39,49 +39,103 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
         # Parse each query
         print "Query: " + query.strip()
         
-        # Shunting-Yard algorithm
-        output_queue = []
-        operator_stack = []
-        operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 0, ")": 0}
+        # Construct Reverse Polish Notation
+        rpn_lst = shunting_yard(query)
+        print rpn_lst
 
-        for word in nltk.tokenize.word_tokenize(query):                
-            # Token is an Operator
-            if word in operators:
-                # Parenthesis checks
-                if word == "(":
-                    operator_stack.append(word)
-                elif word == ")":
-                    # need to check the whole stack until a "(" is found (troublesome)
-                    while len(operator_stack) > 0:
-                        if operator_stack[-1] != "(":
-                            output_queue.append(operator_stack.pop())
-                        else:
-                            operator_stack.pop()
-                            break
-                    if len(operator_stack) > 0 and operator_stack[-1] != "(":
-                        output_queue.append(operator_stack.pop())
+        # print rpn_interpreter(rpn_lst)
+
+    return
+
+def and_query(t1, t2):
+    return
+
+def or_query(t1, t2):
+    return
+
+def not_query(t):
+    return 
+
+# RPN interpreter
+def rpn_interpreter(rpn_lst):
+    # Initialisation
+    binary_operators = {"OR", "AND"}
+    operators = set.union(binary_operators, {"NOT"})
+    stack = []
+    output = "" # string of doc IDs
+
+    while len(rpn_lst) > 0:
+        token = rpn_lst.pop(0) # first item in the list
+        if token not in operators:
+            stack.append(token)
+        else:
+            if token in binary_operators:
+                t1 = stack.pop()
+                t2 = stack.pop()
+                if token == "OR":
+                    or_query(t1, t2)
                 else:
-                    # Push onto stack if stack is empty
-                    if len(operator_stack) == 0:
-                        operator_stack.append(word)
-                    else:
-                        while len(operator_stack) > 0 and operators[operator_stack[-1]] > operators[word]:
-                            # Pop the operator from the stack and add it to output
-                            output_queue.append(operator_stack.pop())
-                        operator_stack.append(word)
-
-            # Token is a Word
+                    and_query(t1, t2)
             else:
-                output_queue.append(word)
+                t = stack.pop()
+                not_query(t)   
+    return output    
 
-        # Empty out the operator stack into the output queue
-        while len(operator_stack) > 0:
-            output_queue.append(operator_stack.pop())
+# Shunting-Yard algorithm
+def shunting_yard(query_line):
+    output_queue = []
+    operator_stack = []
+    operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 0, ")": 0}
 
-        # Reverse Polish Notation debug
-        print output_queue
+    for word in nltk.tokenize.word_tokenize(query_line):                
+        # Token is an Operator
+        if word in operators:
+            # Parenthesis checks
+            if word == "(":
+                operator_stack.append(word)
+            elif word == ")":
+                # need to check the whole stack until a "(" is found (troublesome)
+                while len(operator_stack) > 0:
+                    if operator_stack[-1] != "(":
+                        output_queue.append(operator_stack.pop())
+                    else:
+                        operator_stack.pop()
+                        break
+                if len(operator_stack) > 0 and operator_stack[-1] != "(":
+                    output_queue.append(operator_stack.pop())
+            else:
+                # Push onto stack if stack is empty
+                if len(operator_stack) == 0:
+                    operator_stack.append(word)
+                else:
+                    while len(operator_stack) > 0 and operators[operator_stack[-1]] > operators[word]:
+                        # Pop the operator from the stack and add it to output
+                        output_queue.append(operator_stack.pop())
+                    operator_stack.append(word)
 
-    return dictionary
+        # Token is a Word
+        else:
+            output_queue.append(word)
+
+    # Empty out the operator stack into the output queue
+    while len(operator_stack) > 0:
+        output_queue.append(operator_stack.pop())
+
+    # Reverse Polish Notation debug
+    # print output_queue
+
+    return output_queue
+
+
+
+
+
+
+
+
+
+
+
 
 class PostingReader:
     """
