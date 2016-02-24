@@ -4,9 +4,12 @@ import nltk
 import sys
 import getopt
 
+# For testing convenience, remove when submitting
+# python search.py -d dict.txt -p postings.txt -q queries.txt -o output.txt
+
 def build_dict(input_dict_file):
     """
-    Builds the dictionary from the dictionary file.
+    Builds the dictionary from the dictionary file. Kept in memory.
     Returns a dictionary
     """
     dict_file = file(input_dict_file, 'r')
@@ -20,12 +23,31 @@ def build_dict(input_dict_file):
     dict_file.close()
     return dictionary
 
-def text_index(input_post_file, input_query_file, output_file, dictionary):
+def execute_queries(input_post_file, input_query_file, output_file, dictionary):
     """
     Tests the queries in the input_query_file based on the dictionary and postings.
     Writes results into output_file.
-    """
-    return
+    """   
+
+    # Initialisation
+    queries = file(input_query_file, 'r')   
+    postings = file(input_post_file, 'r') 
+
+    # Reads the query line by line    
+    for query in queries.readlines():
+        # Parse each query
+        print "Query: " + query.strip()
+        for word in query.strip().split():
+            # Stopgap measure (will do something to test for unfound words later)
+            try:
+                offset = dictionary[word][0]
+            except:
+                pass
+            print word, offset
+            reader = PostingReader(postings, offset)
+            print reader.next()
+
+    return dictionary
 
 class PostingReader:
     """
@@ -37,6 +59,7 @@ class PostingReader:
         self.byte_offset = byte_offset
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
+    
     def next(self):
         """
         Retrieves the next doc id in the postings list
@@ -47,10 +70,13 @@ class PostingReader:
         self.postings_file.seek(self.byte_offset + current_offset)
         parsed_string = self.postings_file.read(1)
         current_offset += 1
+        
+        # Encounters a skip pointer, denoted in our postings file by a '*'
         is_skip = parsed_string == "*"
         if is_skip:
             # "*" in the postings list file indicates the number after it is a skip pointer
-            parsed_string = ""
+            parsed_string = "" 
+
         while True:
             self.postings_file.seek(self.byte_offset + current_offset)
             next_char = self.postings_file.read(1)
@@ -64,11 +90,14 @@ class PostingReader:
             parsed_string += next_char
             current_offset += 1
         self.current = current_offset
+        
         if is_skip:
             # Returns a 3-tuple, the last being the new current if the skip pointer is used
             skip_gap = int(parsed_string)
             return (True, self.get_skip_value(skip_gap), self.current + skip_gap)
+
         return (False, int(parsed_string))
+    
     def get_skip_value(self, skip_gap):
         parsed_string = ""
         while True:
@@ -79,6 +108,7 @@ class PostingReader:
             parsed_string += next_char
             skip_gap += 1
         return int(parsed_string)
+    
     def skip_to(self, new_current):
         """
         Sets the current to the provided new_current value
@@ -110,4 +140,4 @@ if input_dict_file == None or input_post_file == None or input_query_file == Non
     sys.exit(2)
 
 dictionary = build_dict(input_dict_file)
-test_index(input_post_file, input_query_file, output_file, dictionary)
+execute_queries(input_post_file, input_query_file, output_file, dictionary)
