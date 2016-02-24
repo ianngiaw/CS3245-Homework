@@ -32,20 +32,53 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
     # Initialisation
     queries = file(input_query_file, 'r')   
     postings = file(input_post_file, 'r') 
+    output_id = "" # String containing all the required doc ids
 
     # Reads the query line by line    
     for query in queries.readlines():
         # Parse each query
         print "Query: " + query.strip()
-        for word in query.strip().split():
-            # Stopgap measure (will do something to test for unfound words later)
-            try:
-                offset = dictionary[word][0]
-            except:
-                pass
-            print word, offset
-            reader = PostingReader(postings, offset)
-            print reader.next()
+        
+        # Shunting-Yard algorithm
+        output_queue = []
+        operator_stack = []
+        operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 4, ")": 4}
+
+        for word in query.strip().split():                
+            # Token is an Operator
+            if word in operators:
+                # Parenthesis checks
+                if word == "(":
+                    operator_stack.append(word)
+                elif word == ")":
+                    # need to check the whole stack until a "(" is found (troublesome)
+                    while len(operator_stack) > 0:
+                        if operator_stack[-1] != "(":
+                            output_queue.append(operator_stack.pop())
+                        else:
+                            operator_stack.pop()
+                    if len(operator_stack) > 0 and operator_stack[-1] != "(":
+                        output_queue.append(operator_stack.pop())
+                else:
+                    # Push onto stack if stack is empty
+                    if len(operator_stack) == 0:
+                        operator_stack.append(word)
+                    else:
+                        while len(operator_stack) > 0 and operators[operator_stack[-1]] > operators[word]:
+                            # Pop the operator from the stack and add it to output
+                            output_queue.append(operator_stack.pop())
+                        operator_stack.append(word)
+
+            # Token is a Word
+            else:
+                output_queue.append(word)
+
+        # Empty out the operator stack into the output queue
+        while len(operator_stack) > 0:
+            output_queue.append(operator_stack.pop())
+
+        # Reverse Polish Notation debug
+        print output_queue
 
     return dictionary
 
