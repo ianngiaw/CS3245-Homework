@@ -43,43 +43,116 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
         rpn_lst = shunting_yard(query)
         print rpn_lst
 
-        # print rpn_interpreter(rpn_lst)
+        print rpn_interpreter(rpn_lst, postings)
+        # print dictionary
 
     return
 
-def and_query(t1, t2):
-    return
+def and_query(t1, t2, postings):
+    # Need to handle strings and list(s) of doc ids differently
+    output = []
 
-def or_query(t1, t2):
-    return
+    if type(t1) ==  str and type(t2) == str:
+        # Do the merge algorithm as discussed in lectures
+        t1_offset = dictionary[t1][0]
+        t2_offset = dictionary[t2][0]
 
-def not_query(t):
-    return 
+        t1_reader = PostingReader(postings, t1_offset)
+        t2_reader = PostingReader(postings, t2_offset)
+        
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+        print t1_reader.next()
+
+        output += ["hello",]
+
+        return output
+    elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
+        # One of them is a str, the other is a list
+        # Need to transform the str into a list of doc ids, then do merging
+        pass
+    else:
+        # Both of them are lists, easiest to merge
+        t1_ptr = 0
+        t2_ptr = 0
+        while t1_ptr < len(t1) and t2_ptr < len(t2):
+            if t1[t1_ptr] == t2[t2_ptr]:
+                output.append(t1[t1_ptr])
+                t1_ptr += 1
+                t2_ptr += 1
+            elif t1[t1_ptr] < t2[t2_ptr]:
+                t1_ptr += 1
+            else:
+                t2_ptr += 1
+
+    return output
+
+def or_query(t1, t2, postings):
+    # Need to handle strings and list(s) of doc ids differently
+    output = []
+
+    if type(t1) ==  str and type(t2) == str:
+        # Do the merge algorithm as discussed in lectures
+        pass
+    elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
+        # Either one of them is a str, the other is a list
+        # Need to transform the str into a list of doc ids, then do merging
+        pass
+    else:
+        # Both of them are lists, easiest to merge
+        output = t1 + t2
+        output.sort()
+
+    return output
+
+def not_query(t, postings):
+    if type(t) ==  str:
+        # Transform string to list of doc ids, then subtract from all doc ids
+        pass
+    else:
+        # Filter out from the list of all doc ids 
+        pass
 
 # RPN interpreter
-def rpn_interpreter(rpn_lst):
+def rpn_interpreter(rpn_lst, postings):
     # Initialisation
     binary_operators = {"OR", "AND"}
     operators = set.union(binary_operators, {"NOT"})
     stack = []
-    output = "" # string of doc IDs
 
     while len(rpn_lst) > 0:
         token = rpn_lst.pop(0) # first item in the list
         if token not in operators:
+            # Transform word tokens into a list of doc ids
+            # Actually shouldn't! If we do that we're wasting the skip pointers!!
             stack.append(token)
         else:
             if token in binary_operators:
                 t1 = stack.pop()
                 t2 = stack.pop()
                 if token == "OR":
-                    or_query(t1, t2)
+                    stack.append(or_query(t1, t2, postings))
                 else:
-                    and_query(t1, t2)
+                    stack.append(and_query(t1, t2, postings))
             else:
                 t = stack.pop()
-                not_query(t)   
-    return output    
+                stack.append(not_query(t, postings))
+    
+    output = stack.pop() # either a string, or a list of docIds
+    if type(output) == str:
+        # Find all occurrences of output in the dictionary
+        pass
+    else:
+        return output   
 
 # Shunting-Yard algorithm
 def shunting_yard(query_line):
@@ -125,17 +198,6 @@ def shunting_yard(query_line):
     # print output_queue
 
     return output_queue
-
-
-
-
-
-
-
-
-
-
-
 
 class PostingReader:
     """
