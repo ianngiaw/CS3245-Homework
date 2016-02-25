@@ -247,7 +247,6 @@ class PostingReader:
                 break
             parsed_string += next_char
             current_offset += 1
-        self.current = current_offset
         
         if is_skip:
             # Returns a 3-tuple, the last being the new current if the skip pointer is used
