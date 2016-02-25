@@ -59,11 +59,7 @@ def and_query(t1, t2, postings):
 
         t1_reader = PostingReader(postings, t1_offset)
         t2_reader = PostingReader(postings, t2_offset)
-        
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
+
         print t1_reader.next()
         print t1_reader.next()
         print t1_reader.next()
@@ -73,7 +69,32 @@ def and_query(t1, t2, postings):
         print t1_reader.next()
         print t1_reader.next()
 
-        output += ["hello",]
+        while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+            # Read the doc id from each term
+            t1_id = t1_reader.peek()
+            t2_id = t2_reader.peek()
+
+            if t1_id == t2_id:
+                output += [t1_id]
+                t1_reader.next() # next() is used as a way to advance the pointer
+                t2_reader.next()
+            elif t1_id < t2_id:
+                # Skip list check
+                if t1_id[0] == True:
+                    # Check what it skips to
+                    # new_t1_id = t1_id[1]
+
+                    # If skip to something smaller than t2, then move t1_id there
+                    # t1_id = how do i move the seek over to the skipped id?
+
+                    # If skip to something bigger than t2, then break out of this if?
+
+                    pass
+
+                t1_reader.next()
+            else:
+                # Skip list check
+                t2_reader.next()
 
         return output
     elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
@@ -218,6 +239,7 @@ class PostingReader:
     def peek(self):
         return self.get_next()[0]
     
+    # Private method
     def get_next(self):
         """
         Retrieves the next doc id in the postings list
