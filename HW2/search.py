@@ -251,14 +251,14 @@ class PostingReader:
         if is_skip:
             # Returns a 3-tuple, the last being the new current if the skip pointer is used
             skip_gap = int(parsed_string)
-            return ((True, self.get_skip_value(skip_gap), current_offset + skip_gap), current_offset)
+            return ((True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap), current_offset)
 
         return ((False, int(parsed_string)), current_offset)
     
-    def get_skip_value(self, skip_gap):
+    def get_skip_value(self, current_offset, skip_gap):
         parsed_string = ""
         while True:
-            self.postings_file.seek(self.byte_offset + self.current + skip_gap)
+            self.postings_file.seek(self.byte_offset + current_offset + skip_gap)
             next_char = self.postings_file.read(1)
             if next_char == " " or next_char == "\n":
                 break
