@@ -43,258 +43,167 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
         rpn_lst = shunting_yard(query)
         print rpn_lst
 
-        print rpn_interpreter(rpn_lst, postings)
+        print rpn_interpreter(dictionary, rpn_lst, postings)
         # print dictionary
 
     return
 
-def and_query(t1, t2, postings):
+def and_query(t1_reader, t2_reader):
     # Need to handle strings and list(s) of doc ids differently
     output = []
 
-    if type(t1) ==  str and type(t2) == str:
-        # Do the merge algorithm as discussed in lectures
-        t1_offset = dictionary[t1][0]
-        t2_offset = dictionary[t2][0]
+    # Debug testing        
+    # print "Peek", t1_reader.peek()
+    # print "Next", t1_reader.next()
+    # print "Peek", t1_reader.peek()
+    # print "Skipped ", t1_reader.peek()[2], t1_reader.skip_to(t1_reader.peek()[2])
+    # print "Peek", t1_reader.peek()
 
-        t1_reader = PostingReader(postings, t1_offset)
-        t2_reader = PostingReader(postings, t2_offset)
+    # print "Next", t1_reader.next()
 
-        # Debug testing        
-        # print "Peek", t1_reader.peek()
-        # print "Next", t1_reader.next()
-        # print "Peek", t1_reader.peek()
-        # print "Skipped ", t1_reader.peek()[2], t1_reader.skip_to(t1_reader.peek()[2])
-        # print "Peek", t1_reader.peek()
+    # print "Peek", t1_reader.peek()
+    # print "Next", t1_reader.next()
+    # print "Peek", t1_reader.peek()
+    # print "Next", t1_reader.next()
+    # print "Peek", t1_reader.peek()
+    # print "Next", t1_reader.next()
 
-        # print "Next", t1_reader.next()
+    # Debugging
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
+    # print t1_reader.next()
 
-        # print "Peek", t1_reader.peek()
-        # print "Next", t1_reader.next()
-        # print "Peek", t1_reader.peek()
-        # print "Next", t1_reader.next()
-        # print "Peek", t1_reader.peek()
-        # print "Next", t1_reader.next()
+    # k = 0 
+    # while k < 5:
+    #     print k < 5
+    #     k += 1
+    # print "***********"
 
-        # Debugging
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
-        # print t1_reader.next()
+    k = 0 
+    while t1_reader.next() != "END":
+        print k, t1_reader.peek(), t1_reader.end
+        k += 1
 
-        # k = 0 
-        # while k < 5:
-        #     print k < 5
-        #     k += 1
-        # print "***********"
+    print t1_reader.peek()
 
-        k = 0 
-        while t1_reader.next() != "END":
-            print k, t1_reader.peek(), t1_reader.end
-            k += 1
+    t1_reader = PostingReader(postings, t1_offset)
+    print "***************"
 
-        print t1_reader.peek()
+    k = 0
+    while t1_reader.peek() != "END":
+        print k, t1_reader.next(), t1_reader.end
+        k += 1
 
-        t1_reader = PostingReader(postings, t1_offset)
-        print "***************"
+    while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+        # Read the doc id from each term
+        # .peek() returns either a 2-tuple or 3-tuple
+        # index 1 of the tuple is the value of the doc id
+        t1_id = t1_reader.peek()
+        t2_id = t2_reader.peek()
 
-        k = 0
-        while t1_reader.peek() != "END":
-            print k, t1_reader.next(), t1_reader.end
-            k += 1
+        # print t1_id
 
-        while t1_reader.peek() != "END" and t2_reader.peek() != "END":
-            # Read the doc id from each term
-            # .peek() returns either a 2-tuple or 3-tuple
-            # index 1 of the tuple is the value of the doc id
-            t1_id = t1_reader.peek()
-            t2_id = t2_reader.peek()
+        # Need a special case to handle both of them being skip pointers
+        # Might potentially skip over a lot of terms that should be included
+        # The following assumes that no two skip pointers are encountered at the same time
 
-            # print t1_id
-
-            # Need a special case to handle both of them being skip pointers
-            # Might potentially skip over a lot of terms that should be included
-            # The following assumes that no two skip pointers are encountered at the same time
-
-            if t1_id[1] == t2_id[1]:
-                # print "Added: " + str(t1_id[1])
-                output += [t1_id[1]]
-                t1_reader.next() # next() is used as a way to advance the pointer
+        if t1_id[1] == t2_id[1]:
+            # print "Added: " + str(t1_id[1])
+            output += [t1_id[1]]
+            t1_reader.next() # next() is used as a way to advance the pointer
+            t2_reader.next()
+        elif t1_id[1] < t2_id[1]:
+            # Skip list check
+            # Slight inefficiency: skip pointer only skips once, then breaks out of if-else 
+            # Ideally, it should continue skipping until it cannot skip, before breaking out
+            if t1_id[0] == True: # has a skip pointer
+                # If skip to something smaller than t2, then move t1_id there
+                t1_reader.skip_to(t1_id[2])
+            else:
+                t1_reader.next()
+        else:
+            # Skip list check
+            if t2_id[0] ==  True:
+                t2_reader.skip_to(t2_id[2])
+            else:
                 t2_reader.next()
-            elif t1_id[1] < t2_id[1]:
-                # Skip list check
-                # Slight inefficiency: skip pointer only skips once, then breaks out of if-else 
-                # Ideally, it should continue skipping until it cannot skip, before breaking out
-                if t1_id[0] == True: # has a skip pointer
-                    # If skip to something smaller than t2, then move t1_id there
-                    t1_reader.skip_to(t1_id[2])
-                else:
-                    t1_reader.next()
-            else:
-                # Skip list check
-                if t2_id[0] ==  True:
-                    t2_reader.skip_to(t2_id[2])
-                else:
-                    t2_reader.next()
 
-        # Not sure if sorting it here again will have significant time penalties, but is here to 
-        # prevent skipped posting from being ahead of others (wrong order)
-        # output.sort()
-        return output
-
-    elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
-        # One of them is a str, the other is a list
-        # Need to transform the str into a list of doc ids, then do merging
-        pass
-    else:
-        # Both of them are lists, easiest to merge
-        t1_ptr = 0
-        t2_ptr = 0
-        while t1_ptr < len(t1) and t2_ptr < len(t2):
-            if t1[t1_ptr] == t2[t2_ptr]:
-                output.append(t1[t1_ptr])
-                t1_ptr += 1
-                t2_ptr += 1
-            elif t1[t1_ptr] < t2[t2_ptr]:
-                t1_ptr += 1
-            else:
-                t2_ptr += 1
-
+    # Not sure if sorting it here again will have significant time penalties, but is here to 
+    # prevent skipped posting from being ahead of others (wrong order)
+    # output.sort()
     return output
 
-def or_query(t1, t2, postings):
+def or_query(t1_reader, t2_reader):
     # Need to handle strings and list(s) of doc ids differently
     output = []
 
-    if type(t1) ==  str and type(t2) == str:
-        # Just aggregate both postings list
-        t1_offset = dictionary[t1][0]
-        t2_offset = dictionary[t2][0]
+    while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+        t1_id = t1_reader.peek()
+        t2_id = t2_reader.peek()
 
-        t1_reader = PostingReader(postings, t1_offset)
-        t2_reader = PostingReader(postings, t2_offset)
-
-        while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+        # Ignore all skip pointers
+        if t1_id[0]:
+            t1_reader.next()
             t1_id = t1_reader.peek()
-            t2_id = t2_reader.peek()
+        if t2_id[0]:
+            t2_reader.next()
+            t2_id = t2_reader.peek()            
 
-            # Ignore all skip pointers
-            if t1_id[0] == True:
-                t1_reader.next()
-                t1_id = t1_reader.peek()
-            if t2_id[0] == True:
-                t2_reader.next()
-                t2_id = t2_reader.peek()            
-
-            if t1_id[1] == t2_id[1]:
-                output += [t1_id[1]]
-                t1_reader.next()
-                t2_reader.next()
-            elif t1_id[1] < t2_id[1]:
-                output += [t1_id[1]]
-                t1_reader.next()
-            else:
-                output += [t2_id[1]]
-                t2_reader.next()
-
-    elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
-        if type(t1) == list:
-            t1, t2 = t2, t1
-
-        t1_offset = dictionary[t1][0]
-        t1_reader = PostingReader(postings, t1_offset)
-        t2_current = 0         
-            
-        while t1_reader.peek() != "END" and t2_current < len(t2):
-            t1_id = t1_reader.peek()
-            
-            # Ignore skip pointers
-            if t1_id[0] == True:
-                t1_reader.next()
-                t1_id = t1_reader.peek() 
-
-            if t1_id[1] == t2[t2_current]:          
-                output += [t1_id[1]]
-                t1_reader.next()
-                t2_current += 1
-            elif t1_id[1] < t2[t2_current]:
-                output += [t1_id[1]]
-                t1_reader.next()
-            else:
-                output += [t2[t2_current]]
-                t2_current += 1
-    else:
-        # Both of them are lists, easiest to merge
-        output = t1 + t2
-        output.sort()
+        if t1_id[1] == t2_id[1]:
+            output += [t1_id[1]]
+            t1_reader.next()
+            t2_reader.next()
+        elif t1_id[1] < t2_id[1]:
+            output += [t1_id[1]]
+            t1_reader.next()
+        else:
+            output += [t2_id[1]]
+            t2_reader.next()
 
     return output
 
-def not_query(t, postings):
+def not_query(t_reader):
     output = []
-    if type(t) ==  str:
-        # Transform string to list of doc ids, then subtract from all doc ids
-        t_offset = dictionary[t][0]
-        t_reader = PostingReader(postings, t_offset)
-        all_reader = PostingReader(postings, 0)
+    all_reader = PostingReader(postings, 0)
 
-        while t_reader.peek() != "END":
-            t_id = t_reader.peek()
-            curr_id = all_reader.peek()
+    while t_reader.peek() != "END":
+        t_id = t_reader.peek()
+        curr_id = all_reader.peek()
 
-            if t_id[0] == True:
-                t_reader.next()
-                t_id = t_reader.peek() 
-            if curr_id[0] == True:
-                all_reader.next()
-                curr_id = all_reader.peek()            
-            
-            if curr_id[1] == t_id[1]:
-                all_reader.next()
-                t_reader.next()
-            elif curr_id[1] < t_id[1]:
-                output += [curr_id[1]]
-                all_reader.next()
-
-        # Add remaining of all postings into the output
-        while all_reader.peek() != "END":
-            curr_id = all_reader.peek()
-            if curr_id[0] == True:
-                all_reader.next()
-                curr_id = all_reader.peek()
+        if t_id[0]:
+            t_reader.next()
+            t_id = t_reader.peek() 
+        if curr_id[0]:
+            all_reader.next()
+            curr_id = all_reader.peek()            
+        
+        if curr_id[1] == t_id[1]:
+            all_reader.next()
+            t_reader.next()
+        elif curr_id[1] < t_id[1]:
             output += [curr_id[1]]
             all_reader.next()
 
-    else:
-        # Filter out from the list of all doc ids
-        # t is a list
-
-        # Build list of all postings
-        all_reader = PostingReader(postings, 0)
-        all_postings = []
-
-        while all_reader.peek() != "END":
+    # Add remaining of all postings into the output
+    while all_reader.peek() != "END":
+        curr_id = all_reader.peek()
+        if curr_id[0] == True:
+            all_reader.next()
             curr_id = all_reader.peek()
-            
-            # Get rid of skip pointers
-            if curr_id[0] == True:
-                all_reader.next()
-                curr_id = all_reader.peek()
-
-            all_postings += [curr_id[1]]
-            all_reader.next()        
-        output = [doc_id for doc_id in all_postings if doc_id not in t]
+        output += [curr_id[1]]
+        all_reader.next()
     
     return output
 
 # RPN interpreter
-def rpn_interpreter(rpn_lst, postings):
+def rpn_interpreter(dictionary, rpn_lst, postings):
     # Initialisation
     binary_operators = {"OR", "AND"}
     operators = set.union(binary_operators, {"NOT"})
@@ -305,27 +214,28 @@ def rpn_interpreter(rpn_lst, postings):
         if token not in operators:
             # Transform word tokens into a list of doc ids
             # Actually shouldn't! If we do that we're wasting the skip pointers!!
-            stack.append(token)
+            if token in dictionary:
+                stack.append(PostingReader(postings, dictionary[token][0]))
+            else:
+                stack.append(MergedPostingReader([]))
+            # stack.append(token)
         else:
+            query_result = []
             if token in binary_operators:
                 t1 = stack.pop()
                 t2 = stack.pop()
                 if token == "OR":
-                    stack.append(or_query(t1, t2, postings))
+                    query_result = or_query(t1, t2)
                 else:
                     # print "appending", and_query(t1, t2, postings)
-                    stack.append(and_query(t1, t2, postings))
+                    query_result = and_query(t1, t2)
             else:
                 # token is unary operator: NOT
                 t = stack.pop()
-                stack.append(not_query(t, postings))
+                query_result = not_query(t)
+            stack.append(MergedPostingReader(query_result))
     
-    output = stack.pop() # either a string, or a list of docIds
-    if type(output) == str:
-        # Find all occurrences of output in the dictionary
-        pass
-    else:
-        return output   
+    return stack.pop().to_list()
 
 # Shunting-Yard algorithm
 def shunting_yard(query_line):
@@ -380,19 +290,20 @@ class MergedPostingReader:
     def __init__(self, merged_list):
         self.merged_list = merged_list
         self.current = 0
-        self.end = False
 
     def peek(self):
-        if self.end:
+        if self.current >= len(self.merged_list):
             return "END"
         return (False, self.merged_list[self.current])
 
     def next(self):
         self.current += 1
-        self.end = self.current >= len(self.merged_list)
-        if self.end:
+        if self.current >= len(self.merged_list):
             return "END"
-        return (False, self.merged_list[self.current])    
+        return (False, self.merged_list[self.current])
+
+    def to_list(self):
+        return self.merged_list   
 
 
 class PostingReader:
@@ -496,6 +407,24 @@ class PostingReader:
         Sets the current to the provided new_current value
         """
         self.current = new_current
+
+    def to_list(self):
+        temp_current = self.current
+        temp_end = self.end
+
+        result = []
+        self.current = 0
+        self.end = False
+
+        while self.peek() != "END":
+            next_item = self.peek()
+            if not next_item[0]:
+                result.append(next_item[1])
+            self.next()
+
+        self.current = temp_current
+        self.send = temp_end
+        return result
 
 def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
