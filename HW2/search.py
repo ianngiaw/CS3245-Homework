@@ -231,21 +231,48 @@ class PostingReader:
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
 
-    def next(self):
-        (next_tup, current_offset) = self.get_next()
-        self.current = current_offset
-        return next_tup
-
     def peek(self):
-        return self.get_next()[0]
-    
-    # Private method
-    def get_next(self):
         """
         Retrieves the next doc id in the postings list
         """
         if self.end:
-            return ("END", self.current)
+            return "END"
+        current_offset = self.current
+        self.postings_file.seek(self.byte_offset + current_offset)
+        parsed_string = self.postings_file.read(1)
+        current_offset += 1
+        
+        # Encounters a skip pointer, denoted in our postings file by a '*'
+        is_skip = parsed_string == "*"
+        if is_skip:
+            # "*" in the postings list file indicates the number after it is a skip pointer
+            parsed_string = "" 
+
+        while True:
+            self.postings_file.seek(self.byte_offset + current_offset)
+            next_char = self.postings_file.read(1)
+            if next_char == " ":
+                current_offset += 1
+                break
+            if next_char == "\n":
+                # End of line reached
+                break
+            parsed_string += next_char
+            current_offset += 1
+
+        if is_skip:
+            # Returns a 3-tuple, the last being the new current if the skip pointer is used
+            skip_gap = int(parsed_string)
+            return (True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap)
+
+        return (False, int(parsed_string))
+    
+    def next(self):
+        """
+        Retrieves the next doc id in the postings list
+        """
+        if self.end:
+            return "END"
         current_offset = self.current
         self.postings_file.seek(self.byte_offset + current_offset)
         parsed_string = self.postings_file.read(1)
@@ -269,13 +296,14 @@ class PostingReader:
                 break
             parsed_string += next_char
             current_offset += 1
-        
+
+        self.current = current_offset
         if is_skip:
             # Returns a 3-tuple, the last being the new current if the skip pointer is used
             skip_gap = int(parsed_string)
-            return ((True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap), current_offset)
+            return (True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap)
 
-        return ((False, int(parsed_string)), current_offset)
+        return (False, int(parsed_string))
     
     def get_skip_value(self, current_offset, skip_gap):
         parsed_string = ""
