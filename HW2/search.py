@@ -173,12 +173,62 @@ def or_query(t1, t2, postings):
     output = []
 
     if type(t1) ==  str and type(t2) == str:
-        # Do the merge algorithm as discussed in lectures
-        pass
+        # Just aggregate both postings list
+        t1_offset = dictionary[t1][0]
+        t2_offset = dictionary[t2][0]
+
+        t1_reader = PostingReader(postings, t1_offset)
+        t2_reader = PostingReader(postings, t2_offset)
+
+        while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+            t1_id = t1_reader.peek()
+            t2_id = t2_reader.peek()
+
+            # Ignore all skip pointers
+            if t1_id[0] == True:
+                t1_reader.next()
+                t1_id = t1_reader.peek()
+            if t2_id[0] == True:
+                t2_reader.next()
+                t2_id = t2_reader.peek()            
+
+            if t1_id[1] == t2_id[1]:
+                output += [t1_id[1]]
+                t1_reader.next()
+                t2_reader.next()
+            elif t1_id[1] < t2_id[1]:
+                output += [t1_id[1]]
+                t1_reader.next()
+            else:
+                output += [t2_id[1]]
+                t2_reader.next()
+
     elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
-        # Either one of them is a str, the other is a list
-        # Need to transform the str into a list of doc ids, then do merging
-        pass
+        if type(t1) == list:
+            t1, t2 = t2, t1
+
+        t1_offset = dictionary[t1][0]
+        t1_reader = PostingReader(postings, t1_offset)
+        t2_current = 0         
+            
+        while t1_reader.peek() != "END" and t2_current < len(t2):
+            t1_id = t1_reader.peek()
+            
+            # Ignore skip pointers
+            if t1_id[0] == True:
+                t1_reader.next()
+                t1_id = t1_reader.peek() 
+
+            if t1_id[1] == t2[t2_current]:          
+                output += [t1_id[1]]
+                t1_reader.next()
+                t2_current += 1
+            elif t1_id[1] < t2[t2_current]:
+                output += [t1_id[1]]
+                t1_reader.next()
+            else:
+                output += [t2[t2_current]]
+                t2_current += 1
     else:
         # Both of them are lists, easiest to merge
         output = t1 + t2
