@@ -52,92 +52,28 @@ def and_query(t1_reader, t2_reader):
     # Need to handle strings and list(s) of doc ids differently
     output = []
 
-    # Debug testing        
-    # print "Peek", t1_reader.peek()
-    # print "Next", t1_reader.next()
-    # print "Peek", t1_reader.peek()
-    # print "Skipped ", t1_reader.peek()[2], t1_reader.skip_to(t1_reader.peek()[2])
-    # print "Peek", t1_reader.peek()
-
-    # print "Next", t1_reader.next()
-
-    # print "Peek", t1_reader.peek()
-    # print "Next", t1_reader.next()
-    # print "Peek", t1_reader.peek()
-    # print "Next", t1_reader.next()
-    # print "Peek", t1_reader.peek()
-    # print "Next", t1_reader.next()
-
-    # Debugging
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-    # print t1_reader.next()
-
-    # k = 0 
-    # while k < 5:
-    #     print k < 5
-    #     k += 1
-    # print "***********"
-
-    k = 0 
-    while t1_reader.next() != "END":
-        print k, t1_reader.peek(), t1_reader.end
-        k += 1
-
-    print t1_reader.peek()
-
-    t1_reader = PostingReader(postings, t1_offset)
-    print "***************"
-
-    k = 0
-    while t1_reader.peek() != "END":
-        print k, t1_reader.next(), t1_reader.end
-        k += 1
-
     while t1_reader.peek() != "END" and t2_reader.peek() != "END":
-        # Read the doc id from each term
-        # .peek() returns either a 2-tuple or 3-tuple
-        # index 1 of the tuple is the value of the doc id
         t1_id = t1_reader.peek()
         t2_id = t2_reader.peek()
 
-        # print t1_id
-
-        # Need a special case to handle both of them being skip pointers
-        # Might potentially skip over a lot of terms that should be included
-        # The following assumes that no two skip pointers are encountered at the same time
-
-        if t1_id[1] == t2_id[1]:
-            # print "Added: " + str(t1_id[1])
-            output += [t1_id[1]]
-            t1_reader.next() # next() is used as a way to advance the pointer
+        if t1_id[0] and t2_id[0]:
+            t1_reader.next()
             t2_reader.next()
-        elif t1_id[1] < t2_id[1]:
-            # Skip list check
-            # Slight inefficiency: skip pointer only skips once, then breaks out of if-else 
-            # Ideally, it should continue skipping until it cannot skip, before breaking out
-            if t1_id[0] == True: # has a skip pointer
-                # If skip to something smaller than t2, then move t1_id there
+        elif t1_id[0] and not t2_id[0]:
+            if t1_id[1] <= t2_id[1]:
                 t1_reader.skip_to(t1_id[2])
-            else:
-                t1_reader.next()
-        else:
-            # Skip list check
-            if t2_id[0] ==  True:
+        elif t2_id[0] and not t1_id[0]:
+            if t2_id[1] <= t1_id[1]:
                 t2_reader.skip_to(t2_id[2])
-            else:
-                t2_reader.next()
+        elif t1_id[1] < t2_id[1]:
+                t1_reader.next()
+        elif t1_id[1] > t2_id[1]:
+            t2_reader.next()
+        else:
+            output.append(t1_id[1])
+            t1_reader.next()
+            t2_reader.next()
 
-    # Not sure if sorting it here again will have significant time penalties, but is here to 
-    # prevent skipped posting from being ahead of others (wrong order)
-    # output.sort()
     return output
 
 def or_query(t1_reader, t2_reader):
