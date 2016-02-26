@@ -103,7 +103,7 @@ def or_query(t1_reader, t2_reader):
 
     return output
 
-def not_query(t_reader):
+def not_query(t_reader, postings):
     output = []
     all_reader = PostingReader(postings, 0)
 
@@ -166,7 +166,7 @@ def rpn_interpreter(dictionary, rpn_lst, postings):
             else:
                 # token is unary operator: NOT
                 t = stack.pop()
-                query_result = not_query(t)
+                query_result = not_query(t, postings)
             stack.append(MergedPostingReader(query_result))
     
     return stack.pop().to_list()
