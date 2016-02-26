@@ -372,6 +372,29 @@ def shunting_yard(query_line):
 
     return output_queue
 
+class MergedPostingReader:
+    """
+    MergedPostingReader reads a python list object and returns
+    it in the same format as PostingReader.
+    """
+    def __init__(self, merged_list):
+        self.merged_list = merged_list
+        self.current = 0
+        self.end = False
+
+    def peek(self):
+        if self.end:
+            return "END"
+        return (False, self.merged_list[self.current])
+
+    def next(self):
+        self.current += 1
+        self.end = self.current >= len(self.merged_list)
+        if self.end:
+            return "END"
+        return (False, self.merged_list[self.current])    
+
+
 class PostingReader:
     """
     PostingReader reads a posting list in a provided postings file object
