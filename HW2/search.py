@@ -60,43 +60,94 @@ def and_query(t1, t2, postings):
         t1_reader = PostingReader(postings, t1_offset)
         t2_reader = PostingReader(postings, t2_offset)
 
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
-        print t1_reader.next()
+        # Debug testing        
+        # print "Peek", t1_reader.peek()
+        # print "Next", t1_reader.next()
+        # print "Peek", t1_reader.peek()
+        # print "Skipped ", t1_reader.peek()[2], t1_reader.skip_to(t1_reader.peek()[2])
+        # print "Peek", t1_reader.peek()
+
+        # print "Next", t1_reader.next()
+
+        # print "Peek", t1_reader.peek()
+        # print "Next", t1_reader.next()
+        # print "Peek", t1_reader.peek()
+        # print "Next", t1_reader.next()
+        # print "Peek", t1_reader.peek()
+        # print "Next", t1_reader.next()
+
+        # Debugging
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+        # print t1_reader.next()
+
+        # k = 0 
+        # while k < 5:
+        #     print k < 5
+        #     k += 1
+        # print "***********"
+
+        k = 0 
+        while t1_reader.next() != "END":
+            print k, t1_reader.peek(), t1_reader.end
+            k += 1
+
+        print t1_reader.peek()
+
+        t1_reader = PostingReader(postings, t1_offset)
+        print "***************"
+
+        k = 0
+        while t1_reader.peek() != "END":
+            print k, t1_reader.next(), t1_reader.end
+            k += 1
 
         while t1_reader.peek() != "END" and t2_reader.peek() != "END":
             # Read the doc id from each term
+            # .peek() returns either a 2-tuple or 3-tuple
+            # index 1 of the tuple is the value of the doc id
             t1_id = t1_reader.peek()
             t2_id = t2_reader.peek()
 
-            if t1_id == t2_id:
-                output += [t1_id]
+            # print t1_id
+
+            # Need a special case to handle both of them being skip pointers
+            # Might potentially skip over a lot of terms that should be included
+            # The following assumes that no two skip pointers are encountered at the same time
+
+            if t1_id[1] == t2_id[1]:
+                # print "Added: " + str(t1_id[1])
+                output += [t1_id[1]]
                 t1_reader.next() # next() is used as a way to advance the pointer
                 t2_reader.next()
-            elif t1_id < t2_id:
+            elif t1_id[1] < t2_id[1]:
                 # Skip list check
-                if t1_id[0] == True:
-                    # Check what it skips to
-                    # new_t1_id = t1_id[1]
-
+                # Slight inefficiency: skip pointer only skips once, then breaks out of if-else 
+                # Ideally, it should continue skipping until it cannot skip, before breaking out
+                if t1_id[0] == True: # has a skip pointer
                     # If skip to something smaller than t2, then move t1_id there
-                    # t1_id = how do i move the seek over to the skipped id?
-
-                    # If skip to something bigger than t2, then break out of this if?
-
-                    pass
-
-                t1_reader.next()
+                    t1_reader.skip_to(t1_id[2])
+                else:
+                    t1_reader.next()
             else:
                 # Skip list check
-                t2_reader.next()
+                if t2_id[0] ==  True:
+                    t2_reader.skip_to(t2_id[2])
+                else:
+                    t2_reader.next()
 
+        # Not sure if sorting it here again will have significant time penalties, but is here to 
+        # prevent skipped posting from being ahead of others (wrong order)
+        # output.sort()
         return output
+
     elif (type(t1) == str and type(t2) == list) or (type(t1) == list and type(t2) == str):
         # One of them is a str, the other is a list
         # Need to transform the str into a list of doc ids, then do merging
