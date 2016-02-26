@@ -141,18 +141,20 @@ def rpn_interpreter(dictionary, rpn_lst, postings):
     # Initialisation
     binary_operators = {"OR", "AND"}
     operators = set.union(binary_operators, {"NOT"})
+    stemmer = nltk.stem.porter.PorterStemmer()
     stack = []
+
 
     while len(rpn_lst) > 0:
         token = rpn_lst.pop(0) # first item in the list
         if token not in operators:
-            # Transform word tokens into a list of doc ids
-            # Actually shouldn't! If we do that we're wasting the skip pointers!!
+            # Change token to lower
             if token in dictionary:
-                stack.append(PostingReader(postings, dictionary[token][0]))
+                stemmed_word = stemmer.stem(token)
+                term = stemmed_word.lower()
+                stack.append(PostingReader(postings, dictionary[term][0]))
             else:
                 stack.append(MergedPostingReader([]))
-            # stack.append(token)
         else:
             query_result = []
             if token in binary_operators:
