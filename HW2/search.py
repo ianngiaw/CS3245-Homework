@@ -31,22 +31,16 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
 
     # Initialisation
     queries = file(input_query_file, 'r')   
-    postings = file(input_post_file, 'r') 
-    output_id = "" # String containing all the required doc ids
+    postings = file(input_post_file, 'r')
+    output = file(output_file, 'w')
 
     # Reads the query line by line    
     for query in queries.readlines():
-        # Parse each query
-        print "Query: " + query.strip()
-        
         # Construct Reverse Polish Notation
         rpn_lst = shunting_yard(query)
-        print rpn_lst
-
-        print rpn_interpreter(dictionary, rpn_lst, postings)
-        # print dictionary
-
-    return
+        result = rpn_interpreter(dictionary, rpn_lst, postings)
+        output_line = reduce(lambda x, y: x + str(y) + " ", result, "").strip() + "\n"
+        output.write(output_line)
 
 def and_query(t1_reader, t2_reader):
     # Need to handle strings and list(s) of doc ids differently
@@ -62,9 +56,13 @@ def and_query(t1_reader, t2_reader):
         elif t1_id[0] and not t2_id[0]:
             if t1_id[1] <= t2_id[1]:
                 t1_reader.skip_to(t1_id[2])
+            else:
+                t1_reader.next()
         elif t2_id[0] and not t1_id[0]:
             if t2_id[1] <= t1_id[1]:
                 t2_reader.skip_to(t2_id[2])
+            else:
+                t2_reader.next()
         elif t1_id[1] < t2_id[1]:
                 t1_reader.next()
         elif t1_id[1] > t2_id[1]:
