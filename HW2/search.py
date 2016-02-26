@@ -237,12 +237,61 @@ def or_query(t1, t2, postings):
     return output
 
 def not_query(t, postings):
+    output = []
     if type(t) ==  str:
         # Transform string to list of doc ids, then subtract from all doc ids
-        pass
+        t_offset = dictionary[t][0]
+        t_reader = PostingReader(postings, t_offset)
+        all_reader = PostingReader(postings, 0)
+
+        while t_reader.peek() != "END":
+            t_id = t_reader.peek()
+            curr_id = all_reader.peek()
+
+            if t_id[0] == True:
+                t_reader.next()
+                t_id = t_reader.peek() 
+            if curr_id[0] == True:
+                all_reader.next()
+                curr_id = all_reader.peek()            
+            
+            if curr_id[1] == t_id[1]:
+                all_reader.next()
+                t_reader.next()
+            elif curr_id[1] < t_id[1]:
+                output += [curr_id[1]]
+                all_reader.next()
+
+        # Add remaining of all postings into the output
+        while all_reader.peek() != "END":
+            curr_id = all_reader.peek()
+            if curr_id[0] == True:
+                all_reader.next()
+                curr_id = all_reader.peek()
+            output += [curr_id[1]]
+            all_reader.next()
+
     else:
-        # Filter out from the list of all doc ids 
-        pass
+        # Filter out from the list of all doc ids
+        # t is a list
+
+        # Build list of all postings
+        all_reader = PostingReader(postings, 0)
+        all_postings = []
+
+        while all_reader.peek() != "END":
+            curr_id = all_reader.peek()
+            
+            # Get rid of skip pointers
+            if curr_id[0] == True:
+                all_reader.next()
+                curr_id = all_reader.peek()
+
+            all_postings += [curr_id[1]]
+            all_reader.next()        
+        output = [doc_id for doc_id in all_postings if doc_id not in t]
+    
+    return output
 
 # RPN interpreter
 def rpn_interpreter(rpn_lst, postings):
@@ -264,8 +313,10 @@ def rpn_interpreter(rpn_lst, postings):
                 if token == "OR":
                     stack.append(or_query(t1, t2, postings))
                 else:
+                    # print "appending", and_query(t1, t2, postings)
                     stack.append(and_query(t1, t2, postings))
             else:
+                # token is unary operator: NOT
                 t = stack.pop()
                 stack.append(not_query(t, postings))
     
