@@ -39,6 +39,11 @@ def build_index(document_dir):
                         # if contains_digits(token):
                         #     continue
 
+                        # Used in essay question 1
+                        # norm_token = normalize_num(token)
+                        # if norm_token != None:
+                        #     token = str(norm_token)
+
                         # Used in essay question 2
                         # if token in stop:
                         #     continue
@@ -52,6 +57,15 @@ def build_index(document_dir):
 # Used in essay question 1
 def contains_digits(s):
     return any(char.isdigit() for char in s)
+
+# Used in essay question 1
+def normalize_num(n):
+    try:
+        return int(float(n))
+    except ValueError:
+        return None
+    except OverflowError:
+        return None
 
 def write_index(output_dict_file, output_post_file, index, doc_ids):
     """
