@@ -1,0 +1,71 @@
+1. You will observe that a large portion of the terms in the dictionary are numbers. However, we normally do not use numbers as query terms to search. Do you think it is a good idea to remove these number entries from the dictionary and the postings lists? Can you propose methods to normalize these numbers? How many percentage of reduction in disk storage do you observe after removing/normalizing these numbers?
+
+It depends. If we assume that numbers are never used as query terms, then excluding the numbers would be good since the terms will never be queried. It will save space in both the dictionary and postings file.
+
+Dictionary size
+  With numbers      620kb
+  Without numbers   368kb
+
+Postings size
+  With numbers      3.3mb
+  Without numbers   3.0mb
+
+The percentage decrease in file size for dictionary is 41% and 9% for postings. This is a very useful result as the we can fit more English terms into the dictionary, and could potentially index a larger corpus.
+
+If the dictionary is stored as a tree, the search would be faster (one less comparison on average) since the dictionary size is halved. 
+
+Based on observations from our dictionary file, there were many numbers with the form 191.x.
+
+For floats, we propose to round them down to integers. For example, 161.2, 161.3, 161.4 will all be normalised to 161.
+
+Dictionary size
+  With floats       620kb
+  Without floats    543kb
+
+Postings size
+  With floats       3.3mb
+  Without floats    3.2mb
+
+By our proposed method, there is a 12% reduction in dictionary size. A downside to this approach is that the precision of our search would be reduced. For example, searching for 161.1 will return results for 161.x, which are false positives.
+
+2. What do you think will happen if we remove stop words from the dictionary and postings file? How does it affect the searching phase?
+
+The dictionary size will shrink by a small amount, while the postings file size will shrink considerably. From our  dictionary, "the" has a document frequency of 5102, which is 2/3 of the documents in the corpus.
+
+We built two versions of the dictionary and postings file, one with stop words and the other without. The list of stop words were imported from nltk.corpus.
+
+Dictionary size
+  With stop words       620kb
+  Without stop words    616kb
+
+Postings size
+  With stop words       3.3mb
+  Without stop words    2.7mb
+
+From the above results, the decrease in dictionary size is rather insignificant, while the decrease in postings size is quite huge.
+
+As for searching, the obvious effect will be that a search for the stop words will return no matching documents. The speed of searching is unaffected by the decrease in file size since we do not bring the whole postings file into memory. Instead, we use a pointer to the correct file position to read in the postings.
+
+3. The NLTK tokenizer may not correctly tokenize all terms. What do you observe from the resulting terms produced by sent_tokenize() and word_tokenize()? Can you propose rules to further refine these results?
+
+sent_tokenize() takes in a string and splits it into a list of sentences. For example, the string "The quick brown fox jumps over the lazy dog. The early bird gets the worm." will be split into ['The quick brown fox jumps over the lazy dog.', 'The early bird gets the worm.'].
+
+The terms produced by sent_tokenize() are exactly as they appear in the string. It is not very useful for us to build the index since we are indexing by individual words and not by sentences.
+
+word_tokenize() takes in a string and splits it into a list of word tokens. For example, "The quick brown fox jumps over the lazy dog. The early bird gets the worm." is split into ['The', 'quick', 'brown', 'fox', 'jumps', 'over', 'the', 'lazy', 'dog', '.', 'The', 'early', 'bird', 'gets', 'the', 'worm', '.']. The function ignores sentence structure and treats everything as a word token, including punctuation.
+
+However, word_tokenize doesn't tokenize terms containing '/' properly. For example passing "Please choose from monday/tuesday/wednesday" into word_tokenize() results in ['Please', 'choose', 'from', 'monday/tuesday/wednesday']. "monday/tuesday/wednesday" is treated as a single word token, instead of the more sensible ['monday', 'tuesday', 'wednesday']. 
+
+This could result in a lower recall for the search process. A search for "monday" would not return the document containing 'monday/tuesday/wednesday'.
+
+Apostrophes (') are also included as part being part of a word token. For example, "This is my dog's toy" results in the list ['This', 'is', 'my', 'dog', "'s", 'toy']. Stemming "'s" results in the token "'s". This would inflate the size of the postings file since suffix "'s" is rather common. When we checked the document frequency of "'s" in our dictionary file, it has a frequency of 2802, which is 1/3 of the documents in the corpus.
+
+We propose that '/' be treated as a delimiter for tokens that are non-numerical. We still want to preserve dates, e.g. 1/1/1970 as 1/1/1970 rather than ['1', '1', '1970']. As for the apostrophe, we propose that the common suffixes such as 's, 'll, 'd, 're, 've not be treated as individual tokens.
+
+
+
+
+
+
+
+
