@@ -8,10 +8,14 @@ from os import listdir
 from os.path import isfile, join
 
 from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.corpus import stopwords
 
 from math import sqrt
 
 stemmer = nltk.stem.porter.PorterStemmer()
+
+# Used in essay question 2
+stop = stopwords.words('english')
 
 def build_index(document_dir):
     """
@@ -30,11 +34,24 @@ def build_index(document_dir):
                     for word in word_tokenize(sent):
                         stemmed_word = stemmer.stem(word)
                         token = stemmed_word.lower()
+                        
+                        # Used in essay question 1
+                        # if contains_digits(token):
+                        #     continue
+
+                        # Used in essay question 2
+                        # if token in stop:
+                        #     continue
+
                         if token not in index:
                             index[token] = []
                         if len(index[token]) == 0 or index[token][-1] != f:
                             index[token].append(f)
     return (index, files)
+
+# Used in essay question 1
+def contains_digits(s):
+    return any(char.isdigit() for char in s)
 
 def write_index(output_dict_file, output_post_file, index, doc_ids):
     """
