@@ -78,9 +78,18 @@ def or_query(t1_reader, t2_reader):
     # Need to handle strings and list(s) of doc ids differently
     output = []
 
-    while t1_reader.peek() != "END" and t2_reader.peek() != "END":
+    while t1_reader.peek() != "END" or t2_reader.peek() != "END":
         t1_id = t1_reader.peek()
         t2_id = t2_reader.peek()
+
+        if t1_id == "END" and not t2_id[0]:
+        	output += [t2_id[1]]
+        	t2_reader.next()
+        	continue
+        if t2_id == "END" and not t1_id[0]:
+        	output += [t1_id[1]]
+        	t1_reader.next()
+        	continue
 
         # Ignore all skip pointers
         if t1_id[0]:
@@ -149,10 +158,10 @@ def rpn_interpreter(dictionary, rpn_lst, postings):
         token = rpn_lst.pop(0) # first item in the list
         if token not in operators:
             # Change token to lower
+            stemmed_word = stemmer.stem(token)
+            token = stemmed_word.lower()
             if token in dictionary:
-                stemmed_word = stemmer.stem(token)
-                term = stemmed_word.lower()
-                stack.append(PostingReader(postings, dictionary[term][0]))
+                stack.append(PostingReader(postings, dictionary[token][0]))
             else:
                 stack.append(MergedPostingReader([]))
         else:
