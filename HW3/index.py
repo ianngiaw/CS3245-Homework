@@ -8,12 +8,14 @@ from os import listdir
 from os.path import isfile, join
 
 from nltk.tokenize import sent_tokenize, word_tokenize
+from math import log10, sqrt
 
 stemmer = nltk.stem.porter.PorterStemmer()
 
 def build_index(document_dir):
     """
-    Builds the index
+    Builds the index.
+    Returns a tuple with the total number of documents indexed and the index itself.
     """
     index = {}
     files = listdir(document_dir)
@@ -23,25 +25,34 @@ def build_index(document_dir):
         path = join(document_dir, f)
         if isfile(path):
             input_file = file(path, 'r')
+            file_tokens = {}
             for line in input_file:
                 for sent in sent_tokenize(line):
                     for word in word_tokenize(sent):
                         stemmed_word = stemmer.stem(word)
                         token = stemmed_word.lower()
-                        if token not in index:
-                            index[token] = []
-                        if len(index[token]) == 0 or index[token][-1][0] != f:
-                            index[token].append([f, 1])
-                        else:
-                            index[token][-1][1] += 1
-    return index
+                        if token not in file_tokens:
+                            file_tokens[token] = 0
+                        file_tokens[token] += 1
+            for token in file_tokens:
+                tf = file_tokens[token]
+                file_tokens[token] = 1 + log10(tf)
+            normalizer = sqrt(reduce(lambda x, y: x + y**2, file_tokens.values(), 0))
+            for token in file_tokens:
+                if token not in index:
+                    index[token] = []
+                normalized_tf = file_tokens[token] / normalizer
+                index[token].append((f, normalized_tf))
+    return (len(files), index)
 
-def write_index(output_dict_file, output_post_file, index):
+def write_index(output_dict_file, output_post_file, index, total_documents):
     """
-    Writes the index to the output dictionary file and postings file
+    Writes the index to the output dictionary file and postings file.
+    The first line of the output dictionary file is the total number of documents indexed.
     """
     dict_file = file(output_dict_file, "w")
     post_file = file(output_post_file, "w")
+    dict_file.write(str(total_documents) + "\n")
     count_bytes = 0
     for token in index:
         postings = index[token]
@@ -82,5 +93,5 @@ if document_dir == None or output_dict_file == None or output_post_file == None:
     usage()
     sys.exit(2)
 
-index = build_index(document_dir)
-write_index(output_dict_file, output_post_file, index)
+(total_documents, index) = build_index(document_dir)
+write_index(output_dict_file, output_post_file, index, total_documents)

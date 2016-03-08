@@ -4,26 +4,35 @@ import nltk
 import sys
 import getopt
 
-# For testing convenience, remove when submitting
-# python search.py -d dict.txt -p postings.txt -q queries.txt -o output.txt
+from nltk.tokenize import word_tokenize
+
+stemmer = nltk.stem.porter.PorterStemmer()
+
+from math import log10, sqrt
 
 def build_dict(input_dict_file):
     """
     Builds the dictionary from the dictionary file. Kept in memory.
-    Returns a dictionary
+    Returns the total number of documents and a dictionary
     """
     dict_file = file(input_dict_file, 'r')
     dictionary = {}
+    line_count = 0
+    total_documents = 0
     for line in dict_file:
+        if line_count < 1:
+            total_documents = int(line.strip())
+            line_count += 1
+            continue
         split_line = line.strip().split(" ")
         token = split_line[0]
         byte_offset = int(split_line[1])
         freq = int(split_line[2])
         dictionary[token] = (byte_offset, freq)
     dict_file.close()
-    return dictionary
+    return total_documents, dictionary
 
-def execute_queries(input_post_file, input_query_file, output_file, dictionary):
+def execute_queries(input_post_file, input_query_file, output_file, dictionary, total_documents):
     """
     Tests the queries in the input_query_file based on the dictionary and postings.
     Writes results into output_file.
@@ -36,220 +45,57 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
 
     # Reads the query line by line    
     for query in queries.readlines():
-        # Construct Reverse Polish Notation
-        rpn_lst = shunting_yard(query)
-        result = rpn_interpreter(dictionary, rpn_lst, postings)
-        output_line = reduce(lambda x, y: x + str(y) + " ", result, "").strip() + "\n"
+        # Process line
+        result = process_query(query.strip(), dictionary, postings, total_documents)
+        output_line = reduce(lambda x, y: x + str(y) + " ", result[:10], "").strip() + "\n"
         output.write(output_line)
 
-def and_query(t1_reader, t2_reader):
-    # Need to handle strings and list(s) of doc ids differently
-    output = []
+    output.close()
 
-    while t1_reader.peek() != "END" and t2_reader.peek() != "END":
-        t1_id = t1_reader.peek()
-        t2_id = t2_reader.peek()
+def process_query(query, dictionary, postings_file, total_documents):
+    token_dict = {}
+    for token in word_tokenize(query):
+        token = stemmer.stem(token)
+        if token not in token_dict:
+            token_dict[token] = 0
+        token_dict[token] += 1
 
-        if t1_id[0] and t2_id[0]:
-            t1_reader.next()
-            t2_reader.next()
-        elif t1_id[0] and not t2_id[0]:
-            if t1_id[1] <= t2_id[1]:
-                t1_reader.skip_to(t1_id[2])
-            else:
-                t1_reader.next()
-        elif t2_id[0] and not t1_id[0]:
-            if t2_id[1] <= t1_id[1]:
-                t2_reader.skip_to(t2_id[2])
-            else:
-                t2_reader.next()
-        elif t1_id[1] < t2_id[1]:
-                t1_reader.next()
-        elif t1_id[1] > t2_id[1]:
-            t2_reader.next()
-        else:
-            output.append(t1_id[1])
-            t1_reader.next()
-            t2_reader.next()
+    token_tfidf = {}
+    for token in token_dict:
+        term_freq = token_dict[token]
+        log_weighted_tf = 1 + log10(term_freq)
+        doc_freq = 1 # set base value as 1 if term does not occur in corpus
+        if token in dictionary:
+            doc_freq += dictionary[token][1]
+        idf = log10(total_documents / doc_freq)
+        token_tfidf[token] = log_weighted_tf * idf
 
-    return output
+    normalizer = sqrt(reduce(lambda x, y: x + y**2, token_tfidf.values(), 0))
+    token_normalized = {}
+    for token in token_tfidf:
+        token_normalized[token] = token_tfidf[token] / normalizer
 
-def or_query(t1_reader, t2_reader):
-    # Need to handle strings and list(s) of doc ids differently
-    output = []
+    doc_tf_dict = {}
+    for token in token_normalized:
+        if token not in dictionary:
+            continue
+        reader = PostingReader(postings_file, dictionary[token][0])
+        next_doc = reader.next()
+        while next_doc != "END":
+            doc_id = next_doc[0]
+            if doc_id not in doc_tf_dict:
+                doc_tf_dict[doc_id] = {}
+            doc_tf_dict[doc_id][token] = next_doc[1]
+            next_doc = reader.next()
 
-    while t1_reader.peek() != "END" or t2_reader.peek() != "END":
-        t1_id = t1_reader.peek()
-        t2_id = t2_reader.peek()
-
-        if t1_id == "END" and not t2_id[0]:
-        	output += [t2_id[1]]
-        	t2_reader.next()
-        	continue
-        if t2_id == "END" and not t1_id[0]:
-        	output += [t1_id[1]]
-        	t1_reader.next()
-        	continue
-
-        # Ignore all skip pointers
-        if t1_id[0]:
-            t1_reader.next()
-            t1_id = t1_reader.peek()
-        if t2_id[0]:
-            t2_reader.next()
-            t2_id = t2_reader.peek()            
-
-        if t1_id[1] == t2_id[1]:
-            output += [t1_id[1]]
-            t1_reader.next()
-            t2_reader.next()
-        elif t1_id[1] < t2_id[1]:
-            output += [t1_id[1]]
-            t1_reader.next()
-        else:
-            output += [t2_id[1]]
-            t2_reader.next()
-
-    return output
-
-def not_query(t_reader, postings):
-    output = []
-    all_reader = PostingReader(postings, 0)
-
-    while t_reader.peek() != "END":
-        t_id = t_reader.peek()
-        curr_id = all_reader.peek()
-
-        if t_id[0]:
-            t_reader.next()
-            t_id = t_reader.peek() 
-        if curr_id[0]:
-            all_reader.next()
-            curr_id = all_reader.peek()            
-        
-        if curr_id[1] == t_id[1]:
-            all_reader.next()
-            t_reader.next()
-        elif curr_id[1] < t_id[1]:
-            output += [curr_id[1]]
-            all_reader.next()
-
-    # Add remaining of all postings into the output
-    while all_reader.peek() != "END":
-        curr_id = all_reader.peek()
-        if curr_id[0] == True:
-            all_reader.next()
-            curr_id = all_reader.peek()
-        output += [curr_id[1]]
-        all_reader.next()
-    
-    return output
-
-# RPN interpreter
-def rpn_interpreter(dictionary, rpn_lst, postings):
-    # Initialisation
-    binary_operators = {"OR", "AND"}
-    operators = set.union(binary_operators, {"NOT"})
-    stemmer = nltk.stem.porter.PorterStemmer()
-    stack = []
-
-
-    while len(rpn_lst) > 0:
-        token = rpn_lst.pop(0) # first item in the list
-        if token not in operators:
-            # Change token to lower
-            stemmed_word = stemmer.stem(token)
-            token = stemmed_word.lower()
-            if token in dictionary:
-                stack.append(PostingReader(postings, dictionary[token][0]))
-            else:
-                stack.append(MergedPostingReader([]))
-        else:
-            query_result = []
-            if token in binary_operators:
-                t1 = stack.pop()
-                t2 = stack.pop()
-                if token == "OR":
-                    query_result = or_query(t1, t2)
-                else:
-                    # print "appending", and_query(t1, t2, postings)
-                    query_result = and_query(t1, t2)
-            else:
-                # token is unary operator: NOT
-                t = stack.pop()
-                query_result = not_query(t, postings)
-            stack.append(MergedPostingReader(query_result))
-    
-    return stack.pop().to_list()
-
-# Shunting-Yard algorithm
-def shunting_yard(query_line):
-    output_queue = []
-    operator_stack = []
-    operators = {"OR": 1, "AND": 2, "NOT": 3 , "(": 0, ")": 0}
-
-    for word in nltk.tokenize.word_tokenize(query_line):                
-        # Token is an Operator
-        if word in operators:
-            # Parenthesis checks
-            if word == "(":
-                operator_stack.append(word)
-            elif word == ")":
-                # need to check the whole stack until a "(" is found (troublesome)
-                while len(operator_stack) > 0:
-                    if operator_stack[-1] != "(":
-                        output_queue.append(operator_stack.pop())
-                    else:
-                        operator_stack.pop()
-                        break
-                if len(operator_stack) > 0 and operator_stack[-1] != "(":
-                    output_queue.append(operator_stack.pop())
-            else:
-                # Push onto stack if stack is empty
-                if len(operator_stack) == 0:
-                    operator_stack.append(word)
-                else:
-                    while len(operator_stack) > 0 and operators[operator_stack[-1]] > operators[word]:
-                        # Pop the operator from the stack and add it to output
-                        output_queue.append(operator_stack.pop())
-                    operator_stack.append(word)
-
-        # Token is a Word
-        else:
-            output_queue.append(word)
-
-    # Empty out the operator stack into the output queue
-    while len(operator_stack) > 0:
-        output_queue.append(operator_stack.pop())
-
-    # Reverse Polish Notation debug
-    # print output_queue
-
-    return output_queue
-
-class MergedPostingReader:
-    """
-    MergedPostingReader reads a python list object and returns
-    it in the same format as PostingReader.
-    """
-    def __init__(self, merged_list):
-        self.merged_list = merged_list
-        self.current = 0
-
-    def peek(self):
-        if self.current >= len(self.merged_list):
-            return "END"
-        return (False, self.merged_list[self.current])
-
-    def next(self):
-        self.current += 1
-        if self.current >= len(self.merged_list):
-            return "END"
-        return (False, self.merged_list[self.current])
-
-    def to_list(self):
-        return self.merged_list   
-
+    scored_docs = []
+    for doc in doc_tf_dict:
+        score = 0
+        for token in doc_tf_dict[doc]:
+            score += doc_tf_dict[doc][token] * token_normalized[token]
+        scored_docs.append((doc, score))
+    scored_docs.sort(key=lambda x: -x[1])
+    return map(lambda x: x[0], scored_docs)
 
 class PostingReader:
     """
@@ -261,115 +107,32 @@ class PostingReader:
         self.byte_offset = byte_offset
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
-
-    def peek(self):
-        """
-        Retrieves the next doc id in the postings list
-        """
-        if self.end:
-            return "END"
-        current_offset = self.current
-        self.postings_file.seek(self.byte_offset + current_offset)
-        parsed_string = self.postings_file.read(1)
-        current_offset += 1
-        
-        # Encounters a skip pointer, denoted in our postings file by a '*'
-        is_skip = parsed_string == "*"
-        if is_skip:
-            # "*" in the postings list file indicates the number after it is a skip pointer
-            parsed_string = "" 
-
-        while True:
-            self.postings_file.seek(self.byte_offset + current_offset)
-            next_char = self.postings_file.read(1)
-            if next_char == " ":
-                current_offset += 1
-                break
-            if next_char == "\n":
-                # End of line reached
-                break
-            parsed_string += next_char
-            current_offset += 1
-
-        if is_skip:
-            # Returns a 3-tuple, the last being the new current if the skip pointer is used
-            skip_gap = int(parsed_string)
-            return (True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap)
-
-        return (False, int(parsed_string))
-    
     def next(self):
-        """
-        Retrieves the next doc id in the postings list
-        """
         if self.end:
             return "END"
         current_offset = self.current
-        self.postings_file.seek(self.byte_offset + current_offset)
-        parsed_string = self.postings_file.read(1)
-        current_offset += 1
-        
-        # Encounters a skip pointer, denoted in our postings file by a '*'
-        is_skip = parsed_string == "*"
-        if is_skip:
-            # "*" in the postings list file indicates the number after it is a skip pointer
-            parsed_string = "" 
-
+        doc_id = ""
         while True:
             self.postings_file.seek(self.byte_offset + current_offset)
             next_char = self.postings_file.read(1)
+            current_offset += 1
             if next_char == " ":
-                current_offset += 1
                 break
+            doc_id += next_char
+        term_freq = ""
+        while True:
+            self.postings_file.seek(self.byte_offset + current_offset)
+            next_char = self.postings_file.read(1)
+            current_offset += 1
             if next_char == "\n":
-                # End of line reached
                 self.end = True
                 break
-            parsed_string += next_char
-            current_offset += 1
-
-        self.current = current_offset
-        if is_skip:
-            # Returns a 3-tuple, the last being the new current if the skip pointer is used
-            skip_gap = int(parsed_string)
-            return (True, self.get_skip_value(current_offset, skip_gap), current_offset + skip_gap)
-
-        return (False, int(parsed_string))
-    
-    def get_skip_value(self, current_offset, skip_gap):
-        parsed_string = ""
-        while True:
-            self.postings_file.seek(self.byte_offset + current_offset + skip_gap)
-            next_char = self.postings_file.read(1)
-            if next_char == " " or next_char == "\n":
+            if next_char == " ":
                 break
-            parsed_string += next_char
-            skip_gap += 1
-        return int(parsed_string)
-    
-    def skip_to(self, new_current):
-        """
-        Sets the current to the provided new_current value
-        """
-        self.current = new_current
+            term_freq += next_char
+        self.current = current_offset
+        return (doc_id, float(term_freq))
 
-    def to_list(self):
-        temp_current = self.current
-        temp_end = self.end
-
-        result = []
-        self.current = 0
-        self.end = False
-
-        while self.peek() != "END":
-            next_item = self.peek()
-            if not next_item[0]:
-                result.append(next_item[1])
-            self.next()
-
-        self.current = temp_current
-        self.send = temp_end
-        return result
 
 def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
@@ -395,5 +158,5 @@ if input_dict_file == None or input_post_file == None or input_query_file == Non
     usage()
     sys.exit(2)
 
-dictionary = build_dict(input_dict_file)
-execute_queries(input_post_file, input_query_file, output_file, dictionary)
+(total_documents, dictionary) = build_dict(input_dict_file)
+execute_queries(input_post_file, input_query_file, output_file, dictionary, total_documents)
