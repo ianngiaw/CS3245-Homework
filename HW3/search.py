@@ -55,7 +55,7 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary, 
 def process_query(query, dictionary, postings_file, total_documents):
     token_dict = {}
     for token in word_tokenize(query):
-        token = stemmer.stem(token)
+        token = stemmer.stem(token).lower()
         if token not in token_dict:
             token_dict[token] = 0
         token_dict[token] += 1
@@ -64,16 +64,16 @@ def process_query(query, dictionary, postings_file, total_documents):
     for token in token_dict:
         term_freq = token_dict[token]
         log_weighted_tf = 1 + log10(term_freq)
-        doc_freq = 1 # set base value as 1 if term does not occur in corpus
         if token in dictionary:
-            doc_freq += dictionary[token][1]
-        idf = log10(total_documents / doc_freq)
-        token_tfidf[token] = log_weighted_tf * idf
+            doc_freq = dictionary[token][1]
+            idf = log10(float(total_documents) / doc_freq)
+            token_tfidf[token] = log_weighted_tf * idf
 
     normalizer = sqrt(reduce(lambda x, y: x + y**2, token_tfidf.values(), 0))
     token_normalized = {}
     for token in token_tfidf:
-        token_normalized[token] = token_tfidf[token] / normalizer
+        if token_tfidf[token] > 0:
+            token_normalized[token] = token_tfidf[token] / normalizer
 
     doc_tf_dict = {}
     for token in token_normalized:
