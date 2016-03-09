@@ -8,7 +8,7 @@ from os import listdir
 from os.path import isfile, join
 
 from nltk.tokenize import sent_tokenize, word_tokenize
-from math import log10, sqrt
+from math import log10, sqrt, floor
 
 stemmer = nltk.stem.porter.PorterStemmer()
 
@@ -42,7 +42,7 @@ def build_index(document_dir):
                 if token not in index:
                     index[token] = []
                 normalized_tf = file_tokens[token] / normalizer
-                index[token].append((f, normalized_tf))
+                index[token].append((f, str(round_sig(normalized_tf))[2:]))
     return (len(files), index)
 
 def write_index(output_dict_file, output_post_file, index, total_documents):
@@ -63,6 +63,9 @@ def write_index(output_dict_file, output_post_file, index, total_documents):
         count_bytes += len(postings_string)
     dict_file.close()
     post_file.close()
+
+def round_sig(x, sig=4):
+    return round(x, sig-int(floor(log10(x)))-1)
 
 def generate_postings_string(postings):
     """

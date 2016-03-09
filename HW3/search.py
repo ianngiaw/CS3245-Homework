@@ -131,7 +131,7 @@ class PostingReader:
                 break
             term_freq += next_char
         self.current = current_offset
-        return (doc_id, float(term_freq))
+        return (doc_id, float("0." + term_freq))
 
 
 def usage():
