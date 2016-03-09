@@ -72,8 +72,7 @@ def process_query(query, dictionary, postings_file, total_documents):
     normalizer = sqrt(reduce(lambda x, y: x + y**2, token_tfidf.values(), 0))
     token_normalized = {}
     for token in token_tfidf:
-        if token_tfidf[token] > 0:
-            token_normalized[token] = token_tfidf[token] / normalizer
+        token_normalized[token] = token_tfidf[token] / normalizer
 
     doc_tf_dict = {}
     for token in token_normalized:
