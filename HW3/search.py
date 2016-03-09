@@ -47,35 +47,66 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary, 
     for query in queries.readlines():
         # Process line
         result = process_query(query.strip(), dictionary, postings, total_documents)
+        # Convert list to string with at most 10 doc ids
         output_line = reduce(lambda x, y: x + str(y) + " ", result[:10], "").strip() + "\n"
         output.write(output_line)
 
     output.close()
 
 def process_query(query, dictionary, postings_file, total_documents):
-    token_dict = {}
+    """
+    Processes the free text query and retrieves the document ids of the
+    documents containing terms in the query.
+    Returns a list of doc_ids in decending order of relevance.
+    """
+    token_normalized = normalize_query_term_frequencies(query, dictionary, total_documents)
+    doc_tf_dict = get_document_normalized_term_freq(token_normalized.keys(), dictionary, postings_file)
+    return score_documents(token_normalized, doc_tf_dict)
+
+def normalize_query_term_frequencies(query, dictionary, total_documents):
+    """
+    Returns a dictionary with keys being the tokens present in the query
+    and values being the tf-idf values of these tokens.
+    """
+    # Get all tokens from query and the raw query term frequencies
+    tokens = {}
     for token in word_tokenize(query):
         token = stemmer.stem(token).lower()
-        if token not in token_dict:
-            token_dict[token] = 0
-        token_dict[token] += 1
+        if token not in tokens:
+            tokens[token] = 0
+        tokens[token] += 1
 
+    # Use document frequecies of terms to calculate the tf-idf of tokens
     token_tfidf = {}
-    for token in token_dict:
-        term_freq = token_dict[token]
+    for token in tokens:
+        term_freq = tokens[token]
         log_weighted_tf = 1 + log10(term_freq)
         if token in dictionary:
             doc_freq = dictionary[token][1]
             idf = log10(float(total_documents) / doc_freq)
             token_tfidf[token] = log_weighted_tf * idf
 
+    # Length normalize the tf-idf values obtained
     normalizer = sqrt(reduce(lambda x, y: x + y**2, token_tfidf.values(), 0))
     token_normalized = {}
     for token in token_tfidf:
         token_normalized[token] = token_tfidf[token] / normalizer
+    return token_normalized
 
+def get_document_normalized_term_freq(tokens, dictionary, postings_file):
+    """
+    Gets the normalized term frequencies for each document containing the
+    tokens provided in tokens.
+    Since the term frequencies are already log weighted and normalized in
+    indexing stage, this function simply retrieves the value using
+    PostingReader.
+    Returns a dictionary of dictionaries. The outer dictionary is keyed by
+    the doc_ids of the documents containing the tokens, and the inner
+    dictionary is keyed by the tokens present in the document, with values
+    being the normalized term frequencies of that term in that document.
+    """
     doc_tf_dict = {}
-    for token in token_normalized:
+    for token in tokens:
         if token not in dictionary:
             continue
         reader = PostingReader(postings_file, dictionary[token][0])
@@ -86,14 +117,23 @@ def process_query(query, dictionary, postings_file, total_documents):
                 doc_tf_dict[doc_id] = {}
             doc_tf_dict[doc_id][token] = next_doc[1]
             next_doc = reader.next()
+    return doc_tf_dict
 
+def score_documents(query_freqs, doc_freqs):
+    """
+    Scores documents in the provided doc_freqs dictionary based on the values
+    in itself and the query_freqs dictionary using cosine similarity.
+    Returns a list of doc_ids sorted in the order of highest score to lowest.
+    """
     scored_docs = []
-    for doc in doc_tf_dict:
+    for doc_id in doc_freqs:
         score = 0
-        for token in doc_tf_dict[doc]:
-            score += doc_tf_dict[doc][token] * token_normalized[token]
-        scored_docs.append((doc, score))
+        for token in doc_freqs[doc_id]:
+            score += doc_freqs[doc_id][token] * query_freqs[token]
+        scored_docs.append((doc_id, score))
+    # Sort in reverse order
     scored_docs.sort(key=lambda x: -x[1])
+    # Return only the doc_ids
     return map(lambda x: x[0], scored_docs)
 
 class PostingReader:
@@ -107,6 +147,13 @@ class PostingReader:
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
     def next(self):
+        """
+        Gets the next document id and it's normalized log weighted term
+        frequecy.
+        Returns a 2-tuple of the document id and the term frequency.
+        If the posting reader has reached the end of the postings list,
+        returns 'END'.
+        """
         if self.end:
             return "END"
         current_offset = self.current
