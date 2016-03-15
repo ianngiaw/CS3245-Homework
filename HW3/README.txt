@@ -65,6 +65,12 @@ the doc_ids of the documents containing the tokens, and the inner dictionary is
 keyed by the tokens present in the document, with values being the normalized
 term frequencies of that term in that document.
 
+PostingReader provides a layer of abstraction over python's file seek and read
+functions. PostingReader is initialized using a python file object of the
+postings file and the pointer to the start of a postings list for a token. The
+document ids and term frequencies are then retrieved by calling the
+PostingReader's next method.
+
 Lastly, the output of the of the two functions, normalize_query_term_frequencies
 and get_document_normalized_term_freq, are passed to score_documents which
 calculates the cosine score of each document. process_query then returns the
