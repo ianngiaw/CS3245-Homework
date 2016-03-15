@@ -19,30 +19,29 @@ def build_index(document_dir):
     """
     index = {}
     files = listdir(document_dir)
-    files.remove(".DS_Store")
     files.sort(key=lambda f: int(f))
     for f in files:
         path = join(document_dir, f)
         if isfile(path):
             input_file = file(path, 'r')
-            file_tokens = {}
+            doc_tokens = {}
             for line in input_file:
                 for sent in sent_tokenize(line):
                     for word in word_tokenize(sent):
                         stemmed_word = stemmer.stem(word)
                         token = stemmed_word.lower()
-                        if token not in file_tokens:
-                            file_tokens[token] = 0
-                        file_tokens[token] += 1
-            for token in file_tokens:
-                tf = file_tokens[token]
-                file_tokens[token] = 1 + log10(tf)
-            normalizer = sqrt(reduce(lambda x, y: x + y**2, file_tokens.values(), 0))
-            for token in file_tokens:
+                        if token not in doc_tokens:
+                            doc_tokens[token] = 0
+                        doc_tokens[token] += 1
+            for token in doc_tokens:
+                tf = doc_tokens[token]
+                doc_tokens[token] = 1 + log10(tf)
+            normalizer = sqrt(reduce(lambda x, y: x + y**2, doc_tokens.values(), 0))
+            for token in doc_tokens:
                 if token not in index:
                     index[token] = []
-                normalized_tf = file_tokens[token] / normalizer
-                index[token].append((f, str(round_sig(normalized_tf))[2:]))
+                normalized_tf = doc_tokens[token] / normalizer
+                index[token].append((f, str(normalized_tf)[2:]))
     return (len(files), index)
 
 def write_index(output_dict_file, output_post_file, index, total_documents):
@@ -52,20 +51,18 @@ def write_index(output_dict_file, output_post_file, index, total_documents):
     """
     dict_file = file(output_dict_file, "w")
     post_file = file(output_post_file, "w")
-    dict_file.write(str(total_documents) + "\n")
     count_bytes = 0
     for token in index:
         postings = index[token]
         postings_string = generate_postings_string(postings)
-        dict_string = token + " " + str(count_bytes) + " " + str(len(postings)) + "\n"
+        doc_freq = len(postings)
+        idf = log10(float(total_documents) / float(doc_freq))
+        dict_string = token + " " + str(count_bytes) + " " + str(idf) + "\n"
         dict_file.write(dict_string)
         post_file.write(postings_string)
         count_bytes += len(postings_string)
     dict_file.close()
     post_file.close()
-
-def round_sig(x, sig=4):
-    return round(x, sig-int(floor(log10(x)))-1)
 
 def generate_postings_string(postings):
     """
