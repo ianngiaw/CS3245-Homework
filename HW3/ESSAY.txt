@@ -14,9 +14,9 @@ phrases if the query was more than two words long. However, this would increase
 the size of the dictionary as the number of tokens would increase from N to
 roughly N * N. This method is also not very efficient if the number of documents
 retrieved is still large, for example if the phrasal query contains a common
-biword token such as 'is the'. However, if the query were two words only two
-words long, we would not need to perform the filtering step, and the query would
-be performed quickly.
+biword token such as 'is the'. However, if the query were only two words long,
+we would no longer need to perform the filtering step, and the query would be
+performed quickly.
 
 Another way would be to modify the indexing phase to include positional indices.
 Then, during the search phase conduct 2 searches. First, searching by relevance
