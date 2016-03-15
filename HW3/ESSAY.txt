@@ -23,11 +23,11 @@ Then, during the search phase conduct 2 searches. First, searching by relevance
 using the VSM model, then conducting a boolean search using the positional
 indices to find documents that match the exact phrase. After which, we filter
 out documents retrieved from the VSM model that do not occur in the list of
-documents that appear in the list of documents that match the exact phrases.
-This would be a more efficient strategy than using biword indices as it would
-have a smaller dictionary size, it would perform a lot faster in phrasal queries
-that contain more than 2 words, and lastly it would not require any reading of
-documents during the querying phase, which would greatly affect the query speed.
+documents that match the exact phrases. This would be a more efficient strategy
+than using biword indices as it would have a smaller dictionary size, it would
+perform a lot faster in phrasal queries that contain more than 2 words, and
+lastly it would not require any reading of documents during the querying phase,
+which would greatly affect the query speed.
 
 2. Describe how your search engine reacts to long documents and long queries as
 compared to short documents and queries. Is the normalization you use sufficient
