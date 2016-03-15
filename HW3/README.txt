@@ -41,6 +41,36 @@ the idf of each document during this indexing phase for the same reason as I do
 for the term frequencies, to make queries more efficient, at the cost of
 dictionary size.
 
+search.py contains the functions used to find the relevant documents that match
+the free text queries. First, build_dict builds a python dictionary based on the
+dictionary file output by index.py. This dictionary's keys are the stemmed
+tokens and the values are tuples of the pointer to the location of the start of
+the postings list and the idf of the token.
+
+This dictionary is then passed to execute_queries to execute each of the queries
+found in the input query file. Each of the lines in the query file are passed to
+process_query to find the most relevant documents.
+
+process_query does this by first calling normalize_query_term_frequencies. This
+function splits the query into tokens using nltk's word_tokenize function, and
+calculates the tf-idf for each of these query tokens. A dictionary of the tokens
+and their respective tf-idf values is returned.
+
+Next, process_query calls get_document_normalized_term_freq, which gets the
+normalized term frequencies for each document containing the tokens provided in
+the query. Since the term frequencies are already log-weighted and normalized in
+indexing stage, this function simply retrieves their value using PostingReader.
+It then returns a dictionary of dictionaries. The outer dictionary is keyed by
+the doc_ids of the documents containing the tokens, and the inner dictionary is
+keyed by the tokens present in the document, with values being the normalized
+term frequencies of that term in that document.
+
+Lastly, the output of the of the two functions, normalize_query_term_frequencies
+and get_document_normalized_term_freq, are passed to score_documents which
+calculates the cosine score of each document. process_query then returns the
+output of score_documents, which is a list of document ids, ordered by their
+cosine scores in decending order.
+
 == Files included with this submission ==
 
 index.py:       Creates the dictionary and postings from the supplied corpus.
