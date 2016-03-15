@@ -18,21 +18,16 @@ def build_dict(input_dict_file):
     dict_file = file(input_dict_file, 'r')
     dictionary = {}
     line_count = 0
-    total_documents = 0
     for line in dict_file:
-        if line_count < 1:
-            total_documents = int(line.strip())
-            line_count += 1
-            continue
         split_line = line.strip().split(" ")
         token = split_line[0]
         byte_offset = int(split_line[1])
-        freq = int(split_line[2])
-        dictionary[token] = (byte_offset, freq)
+        idf = float(split_line[2])
+        dictionary[token] = (byte_offset, idf)
     dict_file.close()
-    return total_documents, dictionary
+    return dictionary
 
-def execute_queries(input_post_file, input_query_file, output_file, dictionary, total_documents):
+def execute_queries(input_post_file, input_query_file, output_file, dictionary):
     """
     Tests the queries in the input_query_file based on the dictionary and postings.
     Writes results into output_file.
@@ -46,24 +41,24 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary, 
     # Reads the query line by line    
     for query in queries.readlines():
         # Process line
-        result = process_query(query.strip(), dictionary, postings, total_documents)
+        result = process_query(query.strip(), dictionary, postings)
         # Convert list to string with at most 10 doc ids
         output_line = reduce(lambda x, y: x + str(y) + " ", result[:10], "").strip() + "\n"
         output.write(output_line)
 
     output.close()
 
-def process_query(query, dictionary, postings_file, total_documents):
+def process_query(query, dictionary, postings_file):
     """
     Processes the free text query and retrieves the document ids of the
     documents containing terms in the query.
     Returns a list of doc_ids in decending order of relevance.
     """
-    token_normalized = normalize_query_term_frequencies(query, dictionary, total_documents)
+    token_normalized = normalize_query_term_frequencies(query, dictionary)
     doc_tf_dict = get_document_normalized_term_freq(token_normalized.keys(), dictionary, postings_file)
     return score_documents(token_normalized, doc_tf_dict)
 
-def normalize_query_term_frequencies(query, dictionary, total_documents):
+def normalize_query_term_frequencies(query, dictionary):
     """
     Returns a dictionary with keys being the tokens present in the query
     and values being the tf-idf values of these tokens.
@@ -82,8 +77,7 @@ def normalize_query_term_frequencies(query, dictionary, total_documents):
         term_freq = tokens[token]
         log_weighted_tf = 1 + log10(term_freq)
         if token in dictionary:
-            doc_freq = dictionary[token][1]
-            idf = log10(float(total_documents) / doc_freq)
+            idf = dictionary[token][1]
             token_tfidf[token] = log_weighted_tf * idf
 
     # Length normalize the tf-idf values obtained
@@ -204,5 +198,5 @@ if input_dict_file == None or input_post_file == None or input_query_file == Non
     usage()
     sys.exit(2)
 
-(total_documents, dictionary) = build_dict(input_dict_file)
-execute_queries(input_post_file, input_query_file, output_file, dictionary, total_documents)
+dictionary = build_dict(input_dict_file)
+execute_queries(input_post_file, input_query_file, output_file, dictionary)
