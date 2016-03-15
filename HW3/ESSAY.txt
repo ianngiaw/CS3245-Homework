@@ -1,8 +1,46 @@
-1. In this assignment, we didn't ask you to support phrasal queries, which is a feature that is typically supported in web search engines. Describe how you would support phrasal search in conjunction with the VSM model. A sketch of the algorithm is sufficient. (For those of you who like a challenge, please go ahead and implement this feature in your submission but clearly demarcate it in your code and allow this feature to be turned on or off using the command line switch "-x" (where "-x" means to turn on the extended processing of phrasal queries). We will give a small bonus to submissions that achieve this functionality correctly).
+1. In this assignment, we didn't ask you to support phrasal queries, which is a
+feature that is typically supported in web search engines. Describe how you
+would support phrasal search in conjunction with the VSM model. A sketch of the
+algorithm is sufficient. (For those of you who like a challenge, please go ahead
+and implement this feature in your submission but clearly demarcate it in your
+code and allow this feature to be turned on or off using the command line switch
+"-x" (where "-x" means to turn on the extended processing of phrasal queries).
+We will give a small bonus to submissions that achieve this functionality
+correctly).
+
+One method would be to index biword tokens instead of indexing single word
+tokens, and then filtering out the documents that do not contain the exact
+phrases if the query was more than two words long. However, this would increase
+the size of the dictionary as the number of tokens would increase from N to
+roughly N * N. This method is also not very efficient if the number of documents
+retrieved is still large, for example if the phrasal query contains a common
+biword token such as 'is the'. However, if the query were two words only two
+words long, we would not need to perform the filtering step, and the query would
+be performed quickly.
+
+Another way would be to modify the indexing phase to include positional indices.
+Then, during the search phase conduct 2 searches. First, searching by relevance
+using the VSM model, then conducting a boolean search using the positional
+indices to find documents that match the exact phrase. After which, we filter
+out documents retrieved from the VSM model that do not occur in the list of
+documents that appear in the list of documents that match the exact phrases.
+This would be a more efficient strategy than using biword indices as it would
+have a smaller dictionary size, it would perform a lot faster in phrasal queries
+that contain more than 2 words, and lastly it would not require any reading of
+documents during the querying phase, which would greatly affect the query speed.
+
+2. Describe how your search engine reacts to long documents and long queries as
+compared to short documents and queries. Is the normalization you use sufficient
+to address the problems (see Section 6.4.4 for a hint)? In your judgement, is
+the ltc.lnc scheme (n.b., not the ranking scheme you were asked to implement)
+sufficient for retrieving documents from the Reuters-21578 collection?
 
 
-2. Describe how your search engine reacts to long documents and long queries as compared to short documents and queries. Is the normalization you use sufficient to address the problems (see Section 6.4.4 for a hint)? In your judgement, is the ltc.lnc scheme (n.b., not the ranking scheme you were asked to implement) sufficient for retrieving documents from the Reuters-21578 collection?
-
-
-3. Do you think zone or field parametric indices would be useful for practical search in the Reuters collection? Note: the Reuters collection does have metadata for each article but the quality of the metadata is not uniform, nor are the metadata classifications uniformly applied (some documents have it, some don't). Hint: for the next Homework #4, we will be using field metadata, so if you want to base Homework #4 on your Homework #3, you're welcomed to start support of this early (although no extra credit will be given if it's right).
+3. Do you think zone or field parametric indices would be useful for practical
+search in the Reuters collection? Note: the Reuters collection does have
+metadata for each article but the quality of the metadata is not uniform, nor
+are the metadata classifications uniformly applied (some documents have it, some
+don't). Hint: for the next Homework #4, we will be using field metadata, so if
+you want to base Homework #4 on your Homework #3, you're welcomed to start
+support of this early (although no extra credit will be given if it's right).
 
