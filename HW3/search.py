@@ -126,7 +126,8 @@ def score_documents(query_freqs, doc_freqs):
             score += doc_freqs[doc_id][token] * query_freqs[token]
         scored_docs.append((doc_id, score))
     # Sort in reverse order
-    scored_docs.sort(key=lambda x: -x[1])
+
+    scored_docs.sort(key=lambda x: (-x[1], int(x[0])))
     # Return only the doc_ids
     return map(lambda x: x[0], scored_docs)
 
