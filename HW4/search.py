@@ -20,19 +20,41 @@ def build_dict(input_dict_file):
     Builds the dictionary from the dictionary file. Kept in memory.
     Returns the total number of documents and a dictionary
     """
+    mode = -1 # 0: term_dict, 1: doc_dict, 2: fields_dict
     dict_file = file(input_dict_file, 'r')
-    dictionary = {}
-    line_count = 0
+    term_dict = {}
+    docs_dict = {}
+    doc_fields_dict = {}
     for line in dict_file:
-        split_line = line.strip().split(" ")
-        token = split_line[0]
-        byte_offset = int(split_line[1])
-        idf = float(split_line[2])
-        dictionary[token] = (byte_offset, idf)
-    dict_file.close()
-    return dictionary
+        line = line.strip()
+        if line == "## Term ##":
+            mode = 0
+        elif line == "## Doc ID ##":
+            mode = 1
+        elif line == "## Fields ##":
+            mode = 2
+        elif mode == 0:
+            split_line = line.split(" ")
+            token = split_line[0]
+            byte_offset = int(split_line[1])
+            idf = float(split_line[2])
+            term_dict[token] = (byte_offset, idf)
+        elif mode == 1:
+            split_line = line.split(" ")
+            doc_id = split_line[0]
+            byte_offset = int(split_line[1])
+            term_count = int(split_line[2])
+            docs_dict[doc_id] = (byte_offset, term_count)
+        elif mode == 2:
+            split_line = line.split(" ")
+            doc_id = split_line[0]
+            byte_offset = int(split_line[1])
+            doc_fields_dict[doc_id] = byte_offset
 
-def execute_queries(input_post_file, input_query_file, output_file, dictionary):
+    dict_file.close()
+    return (term_dict, docs_dict, doc_fields_dict)
+
+def execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict):
     """
     Tests the queries in the input_query_file based on the dictionary and postings.
     Writes results into output_file.
@@ -47,9 +69,8 @@ def execute_queries(input_post_file, input_query_file, output_file, dictionary):
     query = root[0].text.strip() + " " + root[1].text.strip()[33:].strip()
 
     # Process line
-    result = process_query(query.strip(), dictionary, postings)
-    # Convert list to string with at most 10 doc ids
-    output_line = reduce(lambda x, y: x + str(y[0]) + " " + str(y[1]) + "\n", result, "").strip()
+    result = process_query(query.strip(), term_dict, postings)
+    output_line = reduce(lambda x, y: x + str(y[0]) + " ", result, "").strip()
     output.write(output_line)
 
     output.close()
@@ -117,7 +138,7 @@ def get_document_normalized_term_freq(tokens, dictionary, postings_file):
             doc_id = next_doc[0]
             if doc_id not in doc_tf_dict:
                 doc_tf_dict[doc_id] = {}
-            doc_tf_dict[doc_id][token] = next_doc[1]
+            doc_tf_dict[doc_id][token] = next_doc[2]
             next_doc = reader.next()
     return doc_tf_dict
 
@@ -179,8 +200,19 @@ class PostingReader:
             if next_char == " ":
                 break
             term_freq += next_char
+        log_tf = ""
+        while True:
+            self.postings_file.seek(self.byte_offset + current_offset)
+            next_char = self.postings_file.read(1)
+            current_offset += 1
+            if next_char == "\n":
+                self.end = True
+                break
+            if next_char == " ":
+                break
+            log_tf += next_char
         self.current = current_offset
-        return (doc_id, float("0." + term_freq))
+        return (doc_id, int(term_freq), float("0." + log_tf))
 
 
 def usage():
@@ -207,5 +239,5 @@ if input_dict_file == None or input_post_file == None or input_query_file == Non
     usage()
     sys.exit(2)
 
-dictionary = build_dict(input_dict_file)
-execute_queries(input_post_file, input_query_file, output_file, dictionary)
+(term_dict, docs_dict, doc_fields_dict) = build_dict(input_dict_file)
+execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict)
