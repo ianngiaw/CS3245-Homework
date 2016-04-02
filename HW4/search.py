@@ -22,9 +22,9 @@ def build_dict(input_dict_file):
     """
     mode = -1 # 0: term_dict, 1: doc_dict, 2: fields_dict
     dict_file = file(input_dict_file, 'r')
-    term_dict = {}
-    docs_dict = {}
-    doc_fields_dict = {}
+    term_dict = {} # key: term, value: (byte_offset, idf)
+    docs_dict = {} # key: doc_id, value: (byte_offset, total_term_count)
+    doc_fields_dict = {} # key: doc_id, value: byte_offset
     for line in dict_file:
         line = line.strip()
         if line == "## Term ##":
@@ -160,14 +160,30 @@ def score_documents(query_freqs, doc_freqs):
     #return map(lambda x: x[0], scored_docs)
     return scored_docs
 
+def get_term_postings_reader(token, term_dict, postings_file):
+    normalized_tf_parser = lambda x: float("0." + x)
+    return PostingReader(postings_file, term_dict[token][0], 3, [str, int, normalized_tf_parser])
+
+def get_docs_postings_reader(doc_id, docs_dict, postings_file):
+    return PostingReader(postings_file, docs_dict[doc_id][0], 2, [str, int])
+
+def get_doc_fields_postings_reader(doc_id, doc_fields_dict, postings_file):
+    return PostingReader(postings_file, doc_fields_dict[doc_id], 1)
+
 class PostingReader:
     """
     PostingReader reads a posting list in a provided postings file object
     using the byte offset provided by a dictionary.
     """
-    def __init__(self, postings_file, byte_offset):
+    def __init__(self, postings_file, byte_offset, num_vals, type_converters = None):
+        assert type(num_vals) is int and num_vals > 0
         self.postings_file = postings_file
         self.byte_offset = byte_offset
+        self.num_vals = num_vals
+        if not type_converters or len(type_converters) != num_vals:
+            self.type_converters = [lambda x: x for i in range(0, num_vals)]
+        else:
+            self.type_converters = type_converters
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
     def next(self):
@@ -181,63 +197,49 @@ class PostingReader:
         if self.end:
             return "END"
         current_offset = self.current
-        doc_id = ""
-        while True:
-            self.postings_file.seek(self.byte_offset + current_offset)
-            next_char = self.postings_file.read(1)
-            current_offset += 1
-            if next_char == " ":
-                break
-            doc_id += next_char
-        term_freq = ""
-        while True:
-            self.postings_file.seek(self.byte_offset + current_offset)
-            next_char = self.postings_file.read(1)
-            current_offset += 1
-            if next_char == "\n":
-                self.end = True
-                break
-            if next_char == " ":
-                break
-            term_freq += next_char
-        log_tf = ""
-        while True:
-            self.postings_file.seek(self.byte_offset + current_offset)
-            next_char = self.postings_file.read(1)
-            current_offset += 1
-            if next_char == "\n":
-                self.end = True
-                break
-            if next_char == " ":
-                break
-            log_tf += next_char
+        result = []
+        for i in range(0, self.num_vals):
+            val = ""
+            while True:
+                self.postings_file.seek(self.byte_offset + current_offset)
+                next_char = self.postings_file.read(1)
+                current_offset += 1
+                if next_char == "\n":
+                    self.end = True
+                    break
+                if next_char == " ":
+                    break
+                val += next_char
+            result.append(val)
         self.current = current_offset
-        return (doc_id, int(term_freq), float("0." + log_tf))
+        result = map(lambda x: self.type_converters[x](result[x]), range(0, self.num_vals))
+        return tuple(result)
 
 
 def usage():
     print "usage: " + sys.argv[0] + " -d dictionary-file -p postings-file -q file-of-queries -o output-file-of-results"
 
-input_dict_file = input_post_file = input_query_file = output_file = None
-try:
-    opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
-except getopt.GetoptError, err:
-    usage()
-    sys.exit(2)
-for o, a in opts:
-    if o == '-d':
-        input_dict_file = a
-    elif o == '-p':
-        input_post_file = a
-    elif o == '-q':
-        input_query_file = a
-    elif o == '-o':
-        output_file = a
-    else:
-        assert False, "unhandled option"
-if input_dict_file == None or input_post_file == None or input_query_file == None or output_file == None:
-    usage()
-    sys.exit(2)
+if __name__ == "__main__":
+    input_dict_file = input_post_file = input_query_file = output_file = None
+    try:
+        opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
+    except getopt.GetoptError, err:
+        usage()
+        sys.exit(2)
+    for o, a in opts:
+        if o == '-d':
+            input_dict_file = a
+        elif o == '-p':
+            input_post_file = a
+        elif o == '-q':
+            input_query_file = a
+        elif o == '-o':
+            output_file = a
+        else:
+            assert False, "unhandled option"
+    if input_dict_file == None or input_post_file == None or input_query_file == None or output_file == None:
+        usage()
+        sys.exit(2)
 
-(term_dict, docs_dict, doc_fields_dict) = build_dict(input_dict_file)
-execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict)
+    (term_dict, docs_dict, doc_fields_dict) = build_dict(input_dict_file)
+    execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict)
