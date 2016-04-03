@@ -109,6 +109,39 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
 
     output.close()
 
+# ============================
+# Language Model querying
+# ============================
+
+def language_model_query(query, dictionary, postings_file):
+    scored_docs = []
+    probability = 1 # P(t|d)
+    lambda_weight = 0.5 # hard-coded, probably need to find the optimal weight based on how long the query is
+
+    doc_tf_dict = get_document_normalized_term_freq(tokens, dictionary, postings_file)
+    collection_length = get_collection_length()
+
+    for term in query:
+        for doc in docs:
+            reader = get_term_postings_reader(term, dictionary, postings_file)    
+            document_length = get_document_length(doc)
+            probability = lambda_weight * document_length + (1-lambda_weight) * collection_length 
+
+    scored_docs.sort(reverse=True)
+    return score_docs
+
+def get_document_length():
+    pass
+
+def get_collection_length():
+    # Returns total number of words in the Collection
+    # For our purposes, the total number of words = sum of number of words in Title and Abstract ONLY
+    pass
+
+# ================================
+# Vector Space Model querying
+# ================================
+
 def vsm_query(query, dictionary, postings_file):
     """
     Processes the free text query and retrieves the document ids of the
