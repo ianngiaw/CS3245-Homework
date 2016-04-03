@@ -62,6 +62,8 @@ def build_index(document_dir):
                             continue
                         if doc not in files_set:
                             continue
+                        if doc == doc_id:
+                            continue
                         if doc_id not in family_cites_index:
                             family_cites_index[doc_id] = []
                         family_cites_index[doc_id].append(doc)
