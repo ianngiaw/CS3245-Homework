@@ -13,6 +13,31 @@ def print_list_rankings(lst, output_list):
 		else:
 			print i, doc, "not found"
 
+def calculate_average_f2(output_list, positive_list, negative_list):
+	positive_set = set(positive_list)
+	negative_set = set(negative_list)
+	relevant_total = float(len(positive_set))
+	relevant_count = 0
+	non_relevant_count = 0
+	total_f2 = 0
+	for doc in output_list:
+		if doc in positive_set:
+			relevant_count += 1
+		elif doc in negative_set:
+			non_relevant_count += 1
+		precision = 0
+		if relevant_count + non_relevant_count > 0:
+			precision = float(relevant_count) / float(relevant_count + non_relevant_count)
+		recall = float(relevant_count) / relevant_total
+		total_f2 += calculate_f2(precision, recall)
+	return total_f2 / len(output_list)
+
+
+def calculate_f2(precision, recall):
+	if precision + recall > 0:
+		return 5 * precision * recall / (4 * precision + recall)
+	return 0
+
 # Evaluate query 1
 q1_positive_file = file('q1-qrels+ve.txt')
 q1_negative_file = file('q1-qrels-ve.txt')
@@ -42,3 +67,8 @@ print "q2 +ve"
 print_list_rankings(q2_pos_list, q2_output_list)
 print "q2 -ve"
 print_list_rankings(q2_neg_list, q2_output_list)
+
+print "##############"
+print "q1's average f2:", calculate_average_f2(q1_output_list, q1_pos_list, q1_neg_list)
+print "##############"
+print "q2's average f2:", calculate_average_f2(q2_output_list, q2_pos_list, q2_neg_list)
