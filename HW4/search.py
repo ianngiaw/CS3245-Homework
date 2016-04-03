@@ -231,7 +231,7 @@ def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
     Perform Rocchio Algorithm on the three vectors
     Returns an expanded query vector
     """
-    query_vector_weight = 0.2
+    query_vector_weight = 2.0
     relevant_vector_weight = 2.5
     non_relevant_vector_weight = -0.5
 
