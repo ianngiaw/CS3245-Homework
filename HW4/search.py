@@ -17,6 +17,10 @@ stops = map(lambda x: stemmer.stem(x).lower(), stopwords.words('english'))
 
 pseudo_relevance_threshold = 10
 
+# ============================
+# Initialisation functions
+# ============================
+
 def build_dict(input_dict_file):
     """
     Builds the dictionary from the dictionary file. Kept in memory.
@@ -115,6 +119,10 @@ def vsm_query(query, dictionary, postings_file):
     tokens = token_normalized.keys()
     doc_tf_dict = get_document_normalized_term_freq(tokens, dictionary, postings_file)
     return score_documents(token_normalized, doc_tf_dict)
+
+# ================================
+# Query Expansion
+# ================================
 
 def find_more_relevant_documents(relevant_documents, doc_fields_dict, postings_file):
     """
@@ -269,6 +277,10 @@ def score_documents(query_freqs, doc_freqs):
     #return map(lambda x: x[0], scored_docs)
     return scored_docs
 
+# =========================================
+# Helper functions for Postings Reader
+# =========================================
+
 def get_term_postings_reader(token, term_dict, postings_file):
     normalized_tf_parser = lambda x: float("0." + x)
     return PostingReader(postings_file, term_dict[token][0], 3, [str, int, normalized_tf_parser])
@@ -278,6 +290,10 @@ def get_docs_postings_reader(doc_id, docs_dict, postings_file):
 
 def get_doc_fields_postings_reader(doc_id, doc_fields_dict, postings_file):
     return PostingReader(postings_file, doc_fields_dict[doc_id], 1)
+
+# ===================
+# PostingReader
+# ===================
 
 class PostingReader:
     """
