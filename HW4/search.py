@@ -15,6 +15,8 @@ import xml.etree.ElementTree as ET
 
 stops = map(lambda x: stemmer.stem(x).lower(), stopwords.words('english'))
 
+pseudo_relevance_threshold = 10
+
 def build_dict(input_dict_file):
     """
     Builds the dictionary from the dictionary file. Kept in memory.
@@ -66,26 +68,75 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     postings = file(input_post_file, 'r')
     output = file(output_file, 'w')
 
+    # Treat query as a string (concatenate title and description)
+    # Also removes "Relevant documents will describe" from start of description
     query = root[0].text.strip() + " " + root[1].text.strip()[33:].strip()
 
-    # Process line
-    result = process_query(query.strip(), term_dict, postings)
-    output_line = reduce(lambda x, y: x + str(y[0]) + " ", result, "").strip()
+    # TODO: Perform LM query
+
+    # Perform VSM query
+    initial_result = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))
+
+    # Make use of Patent's Family and Cites fields to find relevant documents
+    relevant_documents = initial_result[:pseudo_relevance_threshold]
+    relevant_documents = find_more_relevant_documents(relevant_documents, doc_fields_dict, postings)
+
+    # Find irrelevant docs (documents that are not returned by the query)
+    non_relevant_documents = list(set(docs_dict.keys()) - set(initial_result))
+
+    # Generate relevant docs vector
+    relevant_vector = generate_average_document_vector(relevant_documents, term_dict, docs_dict, postings)
+    # Generate non-relevant docs vector
+    non_relevant_vector = generate_average_document_vector(non_relevant_documents, term_dict, docs_dict, postings)
+    # Generate query vector
+    query_vector = generate_query_vector(query, term_dict)
+
+    # Generate document vectors
+    doc_tf_dict = get_document_normalized_term_freq(query_vector.keys(), term_dict, postings)
+
+    # Generate rocciho vector
+    rocchio_vector = combine_vectors(query_vector, relevant_vector, non_relevant_vector)
+
+    results = score_documents(rocchio_vector, doc_tf_dict)
+    results = filter(lambda x: x[1] > 0, results)
+
+    output_line = reduce(lambda x, y: x + str(y[0]) + " ", results, "").strip()
     output.write(output_line)
 
     output.close()
 
-def process_query(query, dictionary, postings_file):
+def vsm_query(query, dictionary, postings_file):
     """
     Processes the free text query and retrieves the document ids of the
     documents containing terms in the query.
     Returns a list of doc_ids in decending order of relevance.
     """
-    token_normalized = normalize_query_term_frequencies(query, dictionary)
-    doc_tf_dict = get_document_normalized_term_freq(token_normalized.keys(), dictionary, postings_file)
+    token_normalized = generate_query_vector(query, dictionary)
+    tokens = token_normalized.keys()
+    doc_tf_dict = get_document_normalized_term_freq(tokens, dictionary, postings_file)
     return score_documents(token_normalized, doc_tf_dict)
 
-def normalize_query_term_frequencies(query, dictionary):
+def find_more_relevant_documents(relevant_documents, doc_fields_dict, postings_file):
+    """
+    Finds more relevant documents based on the given relevant documents' "Family Members"
+    and "Cites" fields.
+    Returns an expanded list of relevant documents
+    """
+    all_relevant_docs = set(relevant_documents)
+    for doc in relevant_documents:
+        if doc in doc_fields_dict:
+            reader = get_doc_fields_postings_reader(doc, doc_fields_dict, postings_file)
+            while True:
+                next_doc = reader.next()
+                if next_doc == "END":
+                    break
+                all_relevant_docs.add(next_doc[0])
+    # For logging purposes, print the newly found relevant documents
+    if len(all_relevant_docs) > len(relevant_documents):
+        print "Found new relevant_documents:", (all_relevant_docs - set(relevant_documents))
+    return list(all_relevant_docs)
+
+def generate_query_vector(query, dictionary):
     """
     Returns a dictionary with keys being the tokens present in the query
     and values being the tf-idf values of these tokens.
@@ -116,6 +167,64 @@ def normalize_query_term_frequencies(query, dictionary):
         token_normalized[token] = token_tfidf[token] / normalizer
     return token_normalized
 
+def generate_average_document_vector(doc_ids, term_dict, docs_dict, postings_file):
+    """
+    Generates a normalized log weighted tf vector for each of the documents provided
+    and adds all these vectors together, and divides each component by the total number
+    of documents
+    """
+    total_vector = {}
+    num_docs = len(doc_ids)
+    for doc_id in doc_ids:
+        document_vector = generate_document_vector(doc_id, docs_dict, postings_file)
+        for token in document_vector:
+            if token not in total_vector:
+                total_vector[token] = 0
+            total_vector[token] += document_vector[token]
+    for token in total_vector:
+        total_vector[token] /= num_docs
+    return total_vector
+
+def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
+    """
+    Perform Rocchio Algorithm on the three vectors
+    Returns an expanded query vector
+    """
+    query_vector_weight = 0.2
+    relevant_vector_weight = 2.5
+    non_relevant_vector_weight = -0.5
+
+    vectors = [query_vector, relevant_vector, non_relevant_vector]
+    weights = [query_vector_weight, relevant_vector_weight, non_relevant_vector_weight]
+
+    total_vector = {}
+    for (i, vector) in enumerate(vectors):
+        weight = weights[i]
+        for token in vector:
+            if token not in total_vector:
+                total_vector[token] = 0
+            total_vector[token] += weight * vector[token]
+    return total_vector
+
+def generate_document_vector(doc_id, docs_dict, postings_file):
+    """
+    Generates a normalized log weighted tf vector for a single document
+    """
+    log_tf_dict = {}
+    reader = get_docs_postings_reader(doc_id, docs_dict, postings_file)
+    while True:
+        next_token = reader.next()
+        if next_token == "END":
+            break
+        (token, tf) = next_token
+        log_tf_dict[token] = 1 + log10(tf)
+    normalizer = sqrt(reduce(lambda x, y: x + y**2, log_tf_dict.values(), 0))
+    normalized_vector = {}
+    for token in log_tf_dict:
+        normalized_vector[token] = float(log_tf_dict[token]) / float(normalizer)
+    return normalized_vector
+
+
 def get_document_normalized_term_freq(tokens, dictionary, postings_file):
     """
     Gets the normalized term frequencies for each document containing the
@@ -132,7 +241,7 @@ def get_document_normalized_term_freq(tokens, dictionary, postings_file):
     for token in tokens:
         if token not in dictionary:
             continue
-        reader = PostingReader(postings_file, dictionary[token][0])
+        reader = get_term_postings_reader(token, dictionary, postings_file)
         next_doc = reader.next()
         while next_doc != "END":
             doc_id = next_doc[0]

@@ -43,10 +43,12 @@ def build_index(document_dir):
 
             for child in root:
                 name = child.attrib['name'].strip()
-                if type(child.text) is not str:
-                        continue
                 if name in zones:
-                    text = child.text.strip()
+                    text = ""
+                    if type(child.text) is str:
+                        text = child.text.strip()
+                    elif type(child.text) is unicode:
+                        text = child.text.encode('ascii', 'replace')
                     for word in word_tokenize(text):
                         token = stemmer.stem(word).lower()
                         if not is_valid_token(token):

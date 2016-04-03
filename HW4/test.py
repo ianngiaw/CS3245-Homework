@@ -12,7 +12,7 @@ reader1 = search.get_term_postings_reader("determin", term_dict, postings)
 reader2 = search.get_docs_postings_reader("US20090112905A1", docs_dict, postings)
 
 # next() return format: (doc_id)
-reader3 = search.get_doc_fields_postings_reader("US20090289046A1", doc_fields_dict, postings)
+reader3 = search.get_doc_fields_postings_reader("US7537926", doc_fields_dict, postings)
 
 readers = [reader1, reader2, reader3]
 
