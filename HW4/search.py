@@ -77,6 +77,11 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     query = root[0].text.strip() + " " + root[1].text.strip()[33:].strip()
 
     # TODO: Perform LM query
+    # Still experimental
+    # print docs_dict
+    # print term_dict
+    LM_results = language_model_query(query.strip(), docs_dict, term_dict, postings)
+    print LM_results
 
     # Perform VSM query
     initial_result = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))
@@ -113,30 +118,71 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
 # Language Model querying
 # ============================
 
-def language_model_query(query, dictionary, postings_file):
-    scored_docs = []
+# Convenience method
+# python -i search.py -d dictionary.txt -p postings.txt -q q1.xml -o output1.txt
+# python search.py -d dictionary.txt -p postings.txt -q q1.xml -o output1.txt
+
+def language_model_query(query, docs_dict, term_dict, postings):
+    scored_docs = {}
     probability = 1 # P(t|d)
     lambda_weight = 0.5 # hard-coded, probably need to find the optimal weight based on how long the query is
 
-    doc_tf_dict = get_document_normalized_term_freq(tokens, dictionary, postings_file)
-    collection_length = get_collection_length()
+    collection_length = get_collection_length(docs_dict)
 
-    for term in query:
+    for token in word_tokenize(query):
+        token = stemmer.stem(token).lower()
+
+        # To remove stop words and punctuation from the query (since neither of which are indexed)
+        if token in stops or token not in term_dict:
+            continue
+
+        # For each token, find the list of documents in which the term appears and the token's number of occurrences
+        doc_term_frequency = build_doc_term_frequency(token, term_dict, postings) # a dictionary
+        docs = [k for k,v in doc_term_frequency.items()]
+        collection_term_frequency = sum([v for k,v in doc_term_frequency.items()])
+
         for doc in docs:
-            reader = get_term_postings_reader(term, dictionary, postings_file)    
-            document_length = get_document_length(doc)
-            probability = lambda_weight * document_length + (1-lambda_weight) * collection_length 
+            # Formula: weight * n(token appears in doc)/doc_length + (1-weight) * n(token appears in collection)/collection_length
+            term_frequency = doc_term_frequency[doc]
+            document_length = get_document_length(docs_dict, doc)
 
-    scored_docs.sort(reverse=True)
-    return score_docs
+            probability = lambda_weight * term_frequency/document_length + (1-lambda_weight) * collection_term_frequency/collection_length
+            if doc in scored_docs:
+                scored_docs[doc] *= probability
+            else:
+                scored_docs[doc] = probability
 
-def get_document_length():
-    pass
+    # print scored_docs
+    output = [(k, v) for k, v in scored_docs.items()]
+    output.sort(key=lambda x: x[1], reverse=True)
+    return output
+    # return sorted([(k,v) for k, v in scored_docs.items()], lambda x: x[1], reverse=True)
 
-def get_collection_length():
+def build_doc_term_frequency(token, term_dict, postings):
+    reader = get_term_postings_reader(token, term_dict, postings)
+    dct = {} # { doc_id: raw_term_frequency, ... }
+    while True:
+        # next() return format: (doc_id, raw_term_frequency, normalized_log_weighted_term_frequency)
+        next = reader.next()
+        if next != "END":
+            doc_id = next[0]
+            raw_term_frequency = next[1]
+            dct[doc_id] = raw_term_frequency
+        else:
+            break
+    return dct
+
+def get_document_length(docs_dict, doc):
+    # docs_dict in the form { 'US5132543': (2451368, 139), ...}
+    # doc_id: (byte_offset, document_length)
+    return docs_dict[doc][1]
+
+
+def get_collection_length(docs_dict):
     # Returns total number of words in the Collection
     # For our purposes, the total number of words = sum of number of words in Title and Abstract ONLY
-    pass
+    collection_length = sum([v[1] for k, v in docs_dict.items()])    
+    return collection_length
 
 # ================================
 # Vector Space Model querying
@@ -311,7 +357,7 @@ def score_documents(query_freqs, doc_freqs):
     return scored_docs
 
 # =========================================
-# Helper functions for Postings Reader
+# Helper functions for PostingsReader
 # =========================================
 
 def get_term_postings_reader(token, term_dict, postings_file):
@@ -344,9 +390,10 @@ class PostingReader:
             self.type_converters = type_converters
         self.current = 0 # this is the offset that is added to the byte offset when seeking
         self.end = False # set to true when reached end of the list (end of line)
+    
     def next(self):
         """
-        Gets the next document id and it's normalized log weighted term
+        Gets the next document id and its normalized log weighted term
         frequecy.
         Returns a 2-tuple of the document id and the term frequency.
         If the posting reader has reached the end of the postings list,
