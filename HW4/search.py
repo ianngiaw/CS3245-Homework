@@ -13,9 +13,7 @@ from math import log10, sqrt
 
 import xml.etree.ElementTree as ET
 
-stops = map(lambda x: stemmer.stem(x).lower(), stopwords.words('english'))
-
-pseudo_relevance_threshold = 10
+pseudo_relevance_threshold = 50
 
 # ============================
 # Initialisation functions
@@ -80,14 +78,17 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     # Still experimental
     # print docs_dict
     # print term_dict
-    LM_results = language_model_query(query.strip(), docs_dict, term_dict, postings)
-    print LM_results
+    LM_results = [x[0] for x in language_model_query(query.strip(), docs_dict, term_dict, postings)][:pseudo_relevance_threshold]
+    # print LM_results
 
     # Perform VSM query
-    initial_result = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))
+    initial_result = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))[:pseudo_relevance_threshold]
+
+    # Combine initial query
+    initial_result = list(set(LM_results) | set(map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))))
 
     # Make use of Patent's Family and Cites fields to find relevant documents
-    relevant_documents = initial_result[:pseudo_relevance_threshold]
+    relevant_documents = initial_result
     relevant_documents = find_more_relevant_documents(relevant_documents, doc_fields_dict, postings)
 
     # Find irrelevant docs (documents that are not returned by the query)
@@ -133,7 +134,7 @@ def language_model_query(query, docs_dict, term_dict, postings):
         token = stemmer.stem(token).lower()
 
         # To remove stop words and punctuation from the query (since neither of which are indexed)
-        if token in stops or token not in term_dict:
+        if token not in term_dict:
             continue
 
         # For each token, find the list of documents in which the term appears and the token's number of occurrences
@@ -232,8 +233,6 @@ def generate_query_vector(query, dictionary):
     tokens = {}
     for token in word_tokenize(query):
         token = stemmer.stem(token).lower()
-        if token in stops:
-            continue
         if token not in tokens:
             tokens[token] = 0
         tokens[token] += 1
@@ -263,7 +262,7 @@ def generate_average_document_vector(doc_ids, term_dict, docs_dict, postings_fil
     total_vector = {}
     num_docs = len(doc_ids)
     for doc_id in doc_ids:
-        document_vector = generate_document_vector(doc_id, docs_dict, postings_file)
+        document_vector = generate_document_vector(doc_id, term_dict, docs_dict, postings_file)
         for token in document_vector:
             if token not in total_vector:
                 total_vector[token] = 0
@@ -277,8 +276,8 @@ def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
     Perform Rocchio Algorithm on the three vectors
     Returns an expanded query vector
     """
-    query_vector_weight = 2.0
-    relevant_vector_weight = 2.5
+    query_vector_weight = 1.03
+    relevant_vector_weight = 2.0
     non_relevant_vector_weight = -0.5
 
     vectors = [query_vector, relevant_vector, non_relevant_vector]
@@ -293,7 +292,7 @@ def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
             total_vector[token] += weight * vector[token]
     return total_vector
 
-def generate_document_vector(doc_id, docs_dict, postings_file):
+def generate_document_vector(doc_id, term_dict, docs_dict, postings_file):
     """
     Generates a normalized log weighted tf vector for a single document
     """
@@ -304,7 +303,7 @@ def generate_document_vector(doc_id, docs_dict, postings_file):
         if next_token == "END":
             break
         (token, tf) = next_token
-        log_tf_dict[token] = 1 + log10(tf)
+        log_tf_dict[token] = (1 + log10(tf)) * term_dict[token][1]
     normalizer = sqrt(reduce(lambda x, y: x + y**2, log_tf_dict.values(), 0))
     normalized_vector = {}
     for token in log_tf_dict:

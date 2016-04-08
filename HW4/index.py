@@ -58,7 +58,7 @@ def build_index(document_dir):
                         doc_tokens[token] += 1
                 elif name in fields:
                     text = child.text.strip()
-                    doc_ids = set(filter(lambda x: is_valid_token(x) and x in files_set,word_tokenize(text)))
+                    doc_ids = set(filter(lambda x: x != "|" and x in files_set,word_tokenize(text)))
                     for doc in doc_ids:
                         if not is_valid_token(doc):
                             continue
@@ -93,10 +93,11 @@ def is_valid_token(token):
     """
     Remove stopwords, punctuation and tokens consisting purely of numbers and punctuation
     """
-    is_stop_word = token in stops
-    is_puctuation = token in string.punctuation
-    is_number_or_punc = reduce(lambda x, y: x and (y in string.digits or y in string.punctuation), token, True)
-    return not (is_stop_word or is_puctuation or is_number_or_punc)
+    # is_stop_word = token in stops
+    # is_puctuation = token in string.punctuation
+    # is_number_or_punc = reduce(lambda x, y: x and (y in string.digits or y in string.punctuation), token, True)
+    # return not (is_stop_word or is_puctuation or is_number_or_punc)
+    return True
 
 def write_index(output_dict_file, output_post_file, term_index, doc_index, family_cites_index):
     """
