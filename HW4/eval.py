@@ -48,11 +48,12 @@ q1_neg_list = list(set([l.strip() for l in q1_negative_file]))
 q1_output_file = file('output1.txt')
 q1_output_list = q1_output_file.readline().strip().split(" ")
 
+"""
 print "q1 +ve"
 print_list_rankings(q1_pos_list, q1_output_list)
 print "q1 -ve"
 print_list_rankings(q1_neg_list, q1_output_list)
-
+"""
 # Evaluate query 2
 q2_positive_file = file('q2-qrels+ve.txt')
 q2_negative_file = file('q2-qrels-ve.txt')
@@ -62,12 +63,12 @@ q2_neg_list = list(set([l.strip() for l in q2_negative_file]))
 
 q2_output_file = file('output2.txt')
 q2_output_list = q2_output_file.readline().strip().split(" ")
-
+"""
 print "q2 +ve"
 print_list_rankings(q2_pos_list, q2_output_list)
 print "q2 -ve"
 print_list_rankings(q2_neg_list, q2_output_list)
-
+"""
 print "##############"
 print "q1's average f2:", calculate_average_f2(q1_output_list, q1_pos_list, q1_neg_list)
 print "##############"
