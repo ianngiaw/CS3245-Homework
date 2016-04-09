@@ -82,22 +82,24 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     # print LM_results
 
     # Perform VSM query
-    initial_result = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))[:pseudo_relevance_threshold]
+    vsm_results = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))[:pseudo_relevance_threshold]
 
     # Combine initial query
-    initial_result = list(set(LM_results) | set(map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))))
+    initial_result = list(set(LM_results) | set(vsm_results))
 
     # Make use of Patent's Family and Cites fields to find relevant documents
     relevant_documents = initial_result
     relevant_documents = find_more_relevant_documents(relevant_documents, doc_fields_dict, postings)
 
     # Find irrelevant docs (documents that are not returned by the query)
-    non_relevant_documents = list(set(docs_dict.keys()) - set(initial_result))
+    non_relevant_documents = list(set(docs_dict.keys()) - set(relevant_documents))
 
     # Generate relevant docs vector
     relevant_vector = generate_average_document_vector(relevant_documents, term_dict, docs_dict, postings)
+
     # Generate non-relevant docs vector
     non_relevant_vector = generate_average_document_vector(non_relevant_documents, term_dict, docs_dict, postings)
+
     # Generate query vector
     query_vector = generate_query_vector(query, term_dict)
 
@@ -219,9 +221,6 @@ def find_more_relevant_documents(relevant_documents, doc_fields_dict, postings_f
                 if next_doc == "END":
                     break
                 all_relevant_docs.add(next_doc[0])
-    # For logging purposes, print the newly found relevant documents
-    if len(all_relevant_docs) > len(relevant_documents):
-        print "Found new relevant_documents:", (all_relevant_docs - set(relevant_documents))
     return list(all_relevant_docs)
 
 def generate_query_vector(query, dictionary):
@@ -276,9 +275,9 @@ def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
     Perform Rocchio Algorithm on the three vectors
     Returns an expanded query vector
     """
-    query_vector_weight = 1.03
+    query_vector_weight = 2.0
     relevant_vector_weight = 2.0
-    non_relevant_vector_weight = -0.5
+    non_relevant_vector_weight = -2.0
 
     vectors = [query_vector, relevant_vector, non_relevant_vector]
     weights = [query_vector_weight, relevant_vector_weight, non_relevant_vector_weight]
