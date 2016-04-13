@@ -13,7 +13,7 @@ from math import log10, sqrt
 
 import xml.etree.ElementTree as ET
 
-pseudo_relevance_threshold = 50
+pseudo_relevance_threshold = 10
 
 # ============================
 # Initialisation functions
@@ -29,6 +29,12 @@ def build_dict(input_dict_file):
     term_dict = {} # key: term, value: (byte_offset, idf)
     docs_dict = {} # key: doc_id, value: (byte_offset, total_term_count)
     doc_fields_dict = {} # key: doc_id, value: byte_offset
+
+    doc_id_to_ipc = {}
+    term_to_ipc_class = {}
+    term_to_ipc_subclass = {}
+    term_to_ipc_group = {}
+
     for line in dict_file:
         line = line.strip()
         if line == "## Term ##":
@@ -37,6 +43,14 @@ def build_dict(input_dict_file):
             mode = 1
         elif line == "## Fields ##":
             mode = 2
+        elif line == "## Doc ID to IPC ##":
+            mode = 3
+        elif line == '## Term to IPC Class ##':
+            mode = 4
+        elif line == '## Term to IPC Subclass ##':
+            mode = 5
+        elif line == '## Term to IPC Group ##':
+            mode = 6
         elif mode == 0:
             split_line = line.split(" ")
             token = split_line[0]
@@ -54,11 +68,38 @@ def build_dict(input_dict_file):
             doc_id = split_line[0]
             byte_offset = int(split_line[1])
             doc_fields_dict[doc_id] = byte_offset
+        elif mode == 3:
+            split_line = line.split(" ")
+            doc_id = split_line[0]
+            ipc_class = split_line[1]
+            ipc_subclass = split_line[2]
+            ipc_group = split_line[3]
+            doc_id_to_ipc[doc_id] = (ipc_class, ipc_subclass, ipc_group)
+        elif mode == 4:
+            split_line = line.split(" ")
+            token = split_line[0]
+            byte_offset = int(split_line[1])
+            idf = float(split_line[2])
+            term_to_ipc_class[token] = (byte_offset, idf)
+        elif mode == 5:
+            split_line = line.split(" ")
+            token = split_line[0]
+            byte_offset = int(split_line[1])
+            idf = float(split_line[2])
+            term_to_ipc_subclass[token] = (byte_offset, idf)
+        elif mode == 6:
+            split_line = line.split(" ")
+            token = split_line[0]
+            byte_offset = int(split_line[1])
+            idf = float(split_line[2])
+            term_to_ipc_group[token] = (byte_offset, idf)
+
+    ipc_indices = {"doc_ids": doc_id_to_ipc, "ipc_class": term_to_ipc_class, "ipc_subclass": term_to_ipc_subclass, "ipc_group": term_to_ipc_group}
 
     dict_file.close()
-    return (term_dict, docs_dict, doc_fields_dict)
+    return (term_dict, docs_dict, doc_fields_dict, ipc_indices)
 
-def execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict):
+def execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict, ipc_indices):
     """
     Tests the queries in the input_query_file based on the dictionary and postings.
     Writes results into output_file.
@@ -74,18 +115,31 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     # Also removes "Relevant documents will describe" from start of description
     query = root[0].text.strip() + " " + root[1].text.strip()[33:].strip()
 
+    ipc_class_scores = vsm_query(query, ipc_indices["ipc_class"], postings)
+    ipc_class_min_score = min(ipc_class_scores, key=lambda x: x[1])[1]
+    ipc_class_scores = dict(ipc_class_scores)
+
+    ipc_subclass_scores = vsm_query(query, ipc_indices["ipc_subclass"], postings)
+    ipc_subclass_min_score = min(ipc_subclass_scores, key=lambda x: x[1])[1]
+    ipc_subclass_scores = dict(ipc_subclass_scores)
+
+    ipc_group_scores = vsm_query(query, ipc_indices["ipc_group"], postings)
+    ipc_group_min_score = min(ipc_group_scores, key=lambda x: x[1])[1]
+    ipc_group_scores = dict(ipc_group_scores)
+
     # TODO: Perform LM query
     # Still experimental
     # print docs_dict
     # print term_dict
-    LM_results = [x[0] for x in language_model_query(query.strip(), docs_dict, term_dict, postings)][:pseudo_relevance_threshold]
+    # LM_results = [x[0] for x in language_model_query(query.strip(), docs_dict, term_dict, postings)][:pseudo_relevance_threshold]
     # print LM_results
 
     # Perform VSM query
-    vsm_results = map(lambda x: x[0], vsm_query(query.strip(), term_dict, postings))[:pseudo_relevance_threshold]
-
+    vsm_scores = vsm_query(query.strip(), term_dict, postings)
+    vsm_results = map(lambda x: x[0], vsm_scores)
+    """
     # Combine initial query
-    initial_result = list(set(LM_results) | set(vsm_results))
+    initial_result = vsm_results[:pseudo_relevance_threshold] # list(set(LM_results) | set(vsm_results))
 
     # Make use of Patent's Family and Cites fields to find relevant documents
     relevant_documents = initial_result
@@ -110,9 +164,27 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     rocchio_vector = combine_vectors(query_vector, relevant_vector, non_relevant_vector)
 
     results = score_documents(rocchio_vector, doc_tf_dict)
-    results = filter(lambda x: x[1] > 0, results)
+    """
+    doc_id_to_ipc = ipc_indices["doc_ids"]
+    updated_results = []
+    for result in vsm_scores:
+        doc_id = result[0]
+        old_score = result[1]
+        class_score = ipc_class_min_score
+        subclass_score = ipc_subclass_min_score
+        group_score = ipc_group_min_score
+        if doc_id in doc_id_to_ipc:
+            (ipc_class_name, ipc_subclass_name, ipc_group_name) = doc_id_to_ipc[doc_id]
+            class_score = ipc_class_scores[ipc_class_name]
+            subclass_score = ipc_subclass_scores[ipc_subclass_name]
+            group_score = ipc_group_scores[ipc_group_name]
+        new_score = old_score * ((class_score * subclass_score * group_score)**2.7)
+        updated_results.append((doc_id, new_score, old_score))
+    updated_results.sort(key=lambda x: (-x[1], -x[2]))
 
-    output_line = reduce(lambda x, y: x + str(y[0]) + " ", results, "").strip()
+    #results = filter(lambda x: x[1] > 0, results)
+
+    output_line = reduce(lambda x, y: x + str(y[0]) + " ", updated_results, "").strip()
     output.write(output_line)
 
     output.close()
@@ -275,9 +347,9 @@ def combine_vectors(query_vector, relevant_vector, non_relevant_vector):
     Perform Rocchio Algorithm on the three vectors
     Returns an expanded query vector
     """
-    query_vector_weight = 2.0
-    relevant_vector_weight = 2.0
-    non_relevant_vector_weight = -2.0
+    query_vector_weight = 0.1
+    relevant_vector_weight = 0.2
+    non_relevant_vector_weight = -0.7
 
     vectors = [query_vector, relevant_vector, non_relevant_vector]
     weights = [query_vector_weight, relevant_vector_weight, non_relevant_vector_weight]
@@ -444,5 +516,5 @@ if __name__ == "__main__":
         usage()
         sys.exit(2)
 
-    (term_dict, docs_dict, doc_fields_dict) = build_dict(input_dict_file)
-    execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict)
+    (term_dict, docs_dict, doc_fields_dict, ipc_indices) = build_dict(input_dict_file)
+    execute_query(input_post_file, input_query_file, output_file, term_dict, docs_dict, doc_fields_dict, ipc_indices)
