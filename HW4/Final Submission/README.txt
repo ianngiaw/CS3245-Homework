@@ -132,11 +132,16 @@ We tried all three methods for evalution and method 1 returned the highest score
 # Overview of the system and system architecture
 # ==================================================
 
-indexing step indexes all the ipc categories
-normal term -> doc postings list
-pure vsm lel
+Our retrieval system uses pure VSM coupled with the IPC categories and without Rocchio.
+
+In our indexing step, we indexed both the document id and the IPC categories.
+
+For the querying step, we which is basically taking the document's VSM query score, multiplied by the document's IPC Class's VSM query score, multiplied by the document's IPC Subclass's VSM query score, multiplied by the document's IPC Group's VSM query score.
+
+The logic behind it is that documents that do not have the specified query terms may still be relevant to the query, and we are basing that relevance off their IPC Categories.
 
 1. How your system deals with each of the optional components (query expansion, utilizing external resources, field/zone treatment
+
 query expansion not included in the final submission (commented out), since it performed worse when used at all (with and without ipc). describe how we did query expansion
 no external resources.
 query expansion with rocchio we used family and cites fields, buut didn't do as well so we commented it out for search
