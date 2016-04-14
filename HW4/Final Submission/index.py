@@ -108,11 +108,11 @@ def build_index(document_dir):
             add_tokens_to_term_index(doc_id, doc_tokens, term_doc_id_index)
 
     for ipc_class_name in ipc_class_tokens:
-        add_tokens_to_term_index(ipc_class_name, ipc_class_tokens[ipc_class_name], term_ipc_class_idx, magnitude=2)
+        add_tokens_to_term_index(ipc_class_name, ipc_class_tokens[ipc_class_name], term_ipc_class_idx, magnitude=2.5)
     for ipc_subclass_name in ipc_subclass_tokens:
-        add_tokens_to_term_index(ipc_subclass_name, ipc_subclass_tokens[ipc_subclass_name], term_ipc_subclass_idx, magnitude=2)
+        add_tokens_to_term_index(ipc_subclass_name, ipc_subclass_tokens[ipc_subclass_name], term_ipc_subclass_idx, magnitude=2.5)
     for ipc_group_name in ipc_group_tokens:
-        add_tokens_to_term_index(ipc_group_name, ipc_group_tokens[ipc_group_name], term_ipc_group_idx, magnitude=2)
+        add_tokens_to_term_index(ipc_group_name, ipc_group_tokens[ipc_group_name], term_ipc_group_idx, magnitude=2.5)
 
     # Mapping from each document to their ipc categories
     doc_id_ipc_info = {} # key: doc_id, value: (ipc class, ipc subcass, ipc group)
