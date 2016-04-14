@@ -108,11 +108,11 @@ def build_index(document_dir):
             add_tokens_to_term_index(doc_id, doc_tokens, term_doc_id_index)
 
     for ipc_class_name in ipc_class_tokens:
-        add_tokens_to_term_index(ipc_class_name, ipc_class_tokens[ipc_class_name], term_ipc_class_idx)
+        add_tokens_to_term_index(ipc_class_name, ipc_class_tokens[ipc_class_name], term_ipc_class_idx, magnitude=2)
     for ipc_subclass_name in ipc_subclass_tokens:
-        add_tokens_to_term_index(ipc_subclass_name, ipc_subclass_tokens[ipc_subclass_name], term_ipc_subclass_idx)
+        add_tokens_to_term_index(ipc_subclass_name, ipc_subclass_tokens[ipc_subclass_name], term_ipc_subclass_idx, magnitude=2)
     for ipc_group_name in ipc_group_tokens:
-        add_tokens_to_term_index(ipc_group_name, ipc_group_tokens[ipc_group_name], term_ipc_group_idx)
+        add_tokens_to_term_index(ipc_group_name, ipc_group_tokens[ipc_group_name], term_ipc_group_idx, magnitude=2)
 
     # Mapping from each document to their ipc categories
     doc_id_ipc_info = {} # key: doc_id, value: (ipc class, ipc subcass, ipc group)
@@ -187,11 +187,13 @@ def add_doc_tokens_to_doc_index(doc_id, doc_tokens, doc_index):
     term_list = map(lambda term: (term, doc_tokens[term]), doc_tokens)
     doc_index[doc_id] = (total_document_tokens, term_list)
 
-def add_tokens_to_term_index(identifier, tokens, term_index):
+def add_tokens_to_term_index(identifier, tokens, term_index, magnitude=1):
     """
     Adds the tokens found in `tokens` which is a dictionary with key being tokens (terms),
     and value being the term frequencies. These tokens are inserted to the provided `term_index`
-    index with the provided identifier.
+    index with the provided identifier. Magnitude the value of the exponent to be applied log
+    the weighted term frequency values. This exponent gives more weight to terms in an index if
+    desired.
 
     This will resemble the dictionary and postings lists that will be eventually output.
     """
@@ -203,7 +205,7 @@ def add_tokens_to_term_index(identifier, tokens, term_index):
     for token in tokens:
         if token not in term_index:
             term_index[token] = []
-        normalized_tf = log_weighted_tokens[token] / normalizer
+        normalized_tf = (log_weighted_tokens[token])**magnitude / normalizer
         term_index[token].append((identifier, tokens[token], normalized_tf))
 
 
