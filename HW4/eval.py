@@ -41,65 +41,34 @@ def calculate_f2(precision, recall):
 		return 5 * precision * recall / (4 * precision + recall)
 	return 0
 
-results = []
+subprocess.call(["python","search.py","-d","d.txt","-p","p.txt","-q","q1.xml","-o","o1.txt"])
+subprocess.call(["python","search.py","-d","d.txt","-p","p.txt","-q","q2.xml","-o","o2.txt"])
+# Evaluate query 1
+q1_positive_file = file('q1-qrels+ve.txt')
+q1_negative_file = file('q1-qrels-ve.txt')
 
-for c in range(27,28,2):
-	c = float(c) / 10
-	for s in range(27,28,2):
-		s = float(s) / 10
-		for g in range(27,28,2):
-			g = float(g) / 10
-			subprocess.call(["python","search.py","-d","d.txt","-p","p.txt","-q","q1.xml","-o","o1.txt","-c",str(c),"-s",str(s),"-g",str(g)])
-			subprocess.call(["python","search.py","-d","d.txt","-p","p.txt","-q","q2.xml","-o","o2.txt","-c",str(c),"-s",str(s),"-g",str(g)])
-			# Evaluate query 1
-			q1_positive_file = file('q1-qrels+ve.txt')
-			q1_negative_file = file('q1-qrels-ve.txt')
+q1_pos_list = list(set([l.strip() for l in q1_positive_file]))
+q1_neg_list = list(set([l.strip() for l in q1_negative_file]))
 
-			q1_pos_list = list(set([l.strip() for l in q1_positive_file]))
-			q1_neg_list = list(set([l.strip() for l in q1_negative_file]))
+q1_output_file = file('o1.txt')
+q1_output_list = q1_output_file.readline().strip().split(" ")
 
-			q1_output_file = file('o1.txt')
-			q1_output_list = q1_output_file.readline().strip().split(" ")
+# Evaluate query 2
+q2_positive_file = file('q2-qrels+ve.txt')
+q2_negative_file = file('q2-qrels-ve.txt')
 
-			# Evaluate query 2
-			q2_positive_file = file('q2-qrels+ve.txt')
-			q2_negative_file = file('q2-qrels-ve.txt')
+q2_pos_list = list(set([l.strip() for l in q2_positive_file]))
+q2_neg_list = list(set([l.strip() for l in q2_negative_file]))
 
-			q2_pos_list = list(set([l.strip() for l in q2_positive_file]))
-			q2_neg_list = list(set([l.strip() for l in q2_negative_file]))
+q2_output_file = file('o2.txt')
+q2_output_list = q2_output_file.readline().strip().split(" ")
 
-			q2_output_file = file('o2.txt')
-			q2_output_list = q2_output_file.readline().strip().split(" ")
-
-			q1_average_f2 = calculate_average_f2(q1_output_list, q1_pos_list, q1_neg_list)
-			q2_average_f2 = calculate_average_f2(q2_output_list, q2_pos_list, q2_neg_list)
-			total_average_f2 = (q1_average_f2 + q2_average_f2) / 2
-
-			results.append((total_average_f2, q1_average_f2, q2_average_f2, c, s, g))
-
-			print "###################"
-			print "q1's average f2:", q1_average_f2
-			print "q2's average f2:", q2_average_f2
-			print "total average f2:", total_average_f2
-			print "top avg so far:", max(results, key=lambda x: x[0])
-			print "top q1 so far:", max(results, key=lambda x: x[1])
-			print "top q2 so far:", max(results, key=lambda x: x[2])
-			print "###################"
+q1_average_f2 = calculate_average_f2(q1_output_list, q1_pos_list, q1_neg_list)
+q2_average_f2 = calculate_average_f2(q2_output_list, q2_pos_list, q2_neg_list)
+total_average_f2 = (q1_average_f2 + q2_average_f2) / 2
 
 print "###################"
-print "AVG"
-results.sort(key=lambda x: -x[0])
-for (i, res) in enumerate(results):
-	print i, res
-
+print "q1's average f2:", q1_average_f2
+print "q2's average f2:", q2_average_f2
+print "total average f2:", total_average_f2
 print "###################"
-print "Q1"
-results.sort(key=lambda x: -x[1])
-for (i, res) in enumerate(results):
-	print i, res
-
-print "###################"
-print "Q2"
-results.sort(key=lambda x: -x[2])
-for (i, res) in enumerate(results):
-	print i, res
