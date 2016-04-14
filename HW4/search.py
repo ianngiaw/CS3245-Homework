@@ -14,6 +14,9 @@ from math import log10, sqrt
 import xml.etree.ElementTree as ET
 
 pseudo_relevance_threshold = 10
+ipc_class_weight = None
+ipc_subclass_weight = None
+ipc_group_weight = None
 
 # ============================
 # Initialisation functions
@@ -21,8 +24,7 @@ pseudo_relevance_threshold = 10
 
 def build_dict(input_dict_file):
     """
-    Builds the dictionary from the dictionary file. Kept in memory.
-    Returns the total number of documents and a dictionary
+    Builds the dictionaries from the dictionary file. Kept in memory.
     """
     mode = -1 # 0: term_dict, 1: doc_dict, 2: fields_dict
     dict_file = file(input_dict_file, 'r')
@@ -178,7 +180,7 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
             class_score = ipc_class_scores[ipc_class_name]
             subclass_score = ipc_subclass_scores[ipc_subclass_name]
             group_score = ipc_group_scores[ipc_group_name]
-        new_score = old_score * ((class_score * subclass_score * group_score)**2.7)
+        new_score = old_score * ((class_score**ipc_class_weight) * (subclass_score**ipc_subclass_weight) * (group_score**ipc_group_weight))
         updated_results.append((doc_id, new_score, old_score))
     updated_results.sort(key=lambda x: (-x[1], -x[2]))
 
@@ -497,7 +499,7 @@ def usage():
 if __name__ == "__main__":
     input_dict_file = input_post_file = input_query_file = output_file = None
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:')
+        opts, args = getopt.getopt(sys.argv[1:], 'd:p:q:o:c:s:g:')
     except getopt.GetoptError, err:
         usage()
         sys.exit(2)
@@ -510,6 +512,12 @@ if __name__ == "__main__":
             input_query_file = a
         elif o == '-o':
             output_file = a
+        elif o == '-c':
+            ipc_class_weight = float(a)
+        elif o == '-s':
+            ipc_subclass_weight = float(a)
+        elif o == '-g':
+            ipc_group_weight = float(a)
         else:
             assert False, "unhandled option"
     if input_dict_file == None or input_post_file == None or input_query_file == None or output_file == None:
