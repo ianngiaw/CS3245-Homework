@@ -1,6 +1,15 @@
-This is the README file for A0121437N's submission
+This is the README file for A0121437N-A0122081X's submission
 
 == General Notes about this assignment ==
+
+# ========================================
+# Indexing
+# ========================================
+
+## Doc ID to IPC ##
+## Term to IPC Class ##
+## Term to IPC Subclass ##
+## Term to IPC Group ##
 
 index.py contains the functions used to build the index. These functions are
 build_index, write_index and generate_postings_string. The build_index function
@@ -41,6 +50,12 @@ the idf of each document during this indexing phase for the same reason as I do
 for the term frequencies, to make queries more efficient, at the cost of
 dictionary size.
 
+
+
+# ========================================
+# Search
+# ========================================
+
 search.py contains the functions used to find the relevant documents that match
 the free text queries. First, build_dict builds a python dictionary based on the
 dictionary file output by index.py. This dictionary's keys are the stemmed
@@ -78,72 +93,64 @@ output of score_documents, which is a list of document ids, ordered by their
 cosine scores in decending order.
 
 
-
-# ========================================
-# Indexing
-# ========================================
-
-
-# ========================================
-# Search
-# ========================================
-
-
 # ========================================
 # Originality of ideas
 # ========================================
 
-Making use of IPC class, IPC subclass, IPC group
-treat ipc categories as documents
+In this patent retrieval project, we made use of IPC Class, IPC Subclass and IPC Group, which will henceforth be referred to collectively as IPC categories. We treated each member each of these categories as a document and indexed them exactly the same way as we did with the patent documents, except now in place of document ids, we have IPC classes/subclasses/groups as the identifier.
 
-Final submission is just ipc + vsm
-Stuff we tried: (LM, LM+VSM) with Rocchio
-Rocchio we tried a lot of different alpha, beta, gamma values
-also under rocchio we also varied how we defined the relevant and non-relevant documents
-top 10, top 50, top 100 as relevant docs
-non-relevant: documents not returned by the initial query, anything that's not the relevant doc as defined earlier
+For example, if a term "liquid" appears in a document with IPC Class "H05", "C12" and "G05", the postings will look like "liquid": "H05" -> "C12" -> "G05".
 
-all still sucked so we just stuck with ipc + vsm
+For our final submission, we used a combination of IPC and VSM model without Rocchio, because that was the combination that gave us the highest MAF2 scores. The overview of the system and its architecture will be discussed in the next segment, while the remaining of this segment will be dedicated to the other original ideas that we have tried.
 
-Experiment 1
-same weights for all ipc categories. accidentally squared the log of the numerator (tf) before dividing it by the normaliser -> oddly performed very well
+We tried the following combinations:
+1. Language Model (LM)
+2. LM + VSM with Rocchio
 
-Experiment 2
-same weights, but fixed the accidental squaring, but it performed worse
+For the pure LM, the documents retrieved were simply a results of running the LM. However, the results we got were not ideal and resulted in a low F2 score, so we tried used both LM and VSM to retrieve the documents and combined them in to a large set of retrieved documents. However, by combining the LM results with the VSM results, the overall F2 score was actually lowered, hence we decided to ditch the LM altogether.
 
-Experiment 3
-different weights fo each ipc category. didn't perform well
+After deciding to use only VSM, we also tried experimenting with the heuristics we used to decide Relevant and Non-Relevant documents for the Rocchio implementation:
+1. Non-relevant set of documents as the entire corpus except the top k documents
+2. Non-relevant set of documents as non-retrieved documents
 
-combined VSM and rocchio with ipc weighting but it turned out worse than normal vsm + ipc weighting 
-maybe it's because...?
+For method 1, we tried using top 10, 50 and 100 and using the top 100 gave the best results. However, method 2 performed slightly better than method 1, so we used that heuristics instead. However, our final implementation did not include Rocchio at all.
 
-Overview of your system, your system architecture
+Eventually, after finding out that IPC + VSM model gave us the highest MAF2 values, we tried tweaking the parameters in this approach:
+1. Identical weights for all IPC categories (numerator is squared during normalisation)
+2. Identical weights for all IPC categories (numerator is calculated normally during normalisation)
+3. Different weights for each IPC categories. In order of decreasing weight: IPC group, IPC subclass, IPC class
+
+Method 1 was a result of a bug in our programming, which resulted in the numerator being squared when the normalised IPC score was being calculated. 
+
+Method 2 was our attempt to fix the mistake committed in method 1. 
+
+For method 3, we weighted IPC group higher because we felt that it is a better differentiator than both subclass and class, since it is more specific. 
+
+We tried all three methods for evalution and method 1 returned the highest score by a large margin. Going by this logic, we thought that by increasing the factor of the exponent, the F2 score might even be higher. We tried a factor of 3 initially, but the score dropped. Increasing to a factor of 2.5 however raised the scores, so our final implementation used a factor of 2.5.
+
+# =================================================
+# Overview of the system and system architecture
+# ==================================================
+
 indexing step indexes all the ipc categories
 normal term -> doc postings list
 pure vsm lel
 
-How your system deals with each of the optional components (query expansion, utilizing external resources, field/zone treatment
+1. How your system deals with each of the optional components (query expansion, utilizing external resources, field/zone treatment
 query expansion not included in the final submission (commented out), since it performed worse when used at all (with and without ipc). describe how we did query expansion
 no external resources.
 query expansion with rocchio we used family and cites fields, buut didn't do as well so we commented it out for search
 
-field that we took note of ipc categories 
-zones that we took note of title and abstract -> concatenated and treated as the one single document. did not treat them as from different zones
+2. Fields that we took note of ipc categories 
+Zones that we took note of title and abstract -> concatenated and treated as the one single document. did not treat them as from different zones
 
-Run-time optimizations
+3. Run-time optimizations
 not using internet resources as a run-time optimisation LOL
 tf and idf both calculated during indexing phase and stored inside dictionary and postings file, rather than calculating during query time. save time during query, no need to perform the arithmetic operations.
 
-Allocation of work to each of the individual members of the project team.
-
-
-
-
-
-
-
-
-
+4. Allocation of work to each of the individual members of the project team.
+Ian did all of the indexing, VSM model, implementation of the IPC implementation, code documentation
+MX did the language model, research on how to improve the MAF score and writing up the readme
 
 == Files included with this submission ==
 
@@ -157,13 +164,13 @@ postings.txt:   The postings file index.py produced when run on my machine.
 
 Please initial one of the following statements.
 
-[X] I, A0121437N, certify that I have followed the CS 3245 Information
+[X] I, A0121437N-A0122081X, certify that I have followed the CS 3245 Information
 Retrieval class guidelines for homework assignments.  In particular, I
 expressly vow that I have followed the Facebook rule in discussing
 with others in doing the assignment and did not take notes (digital or
 printed) from the discussions.  
 
-[ ] I, A0121437N, did not follow the class rules regarding homework
+[ ] I, A0121437N-A0122081X, did not follow the class rules regarding homework
 assignment, because of the following reason:
 
 <Please fill in>
