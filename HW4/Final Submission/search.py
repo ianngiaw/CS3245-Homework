@@ -124,7 +124,7 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     ##############################
 
     # Perform VSM query
-    vsm_scores = vsm_query(query.strip(), term_dict, postings)
+    vsm_scores = vsm_query(query.strip(), term_dict, postings) # [(doc_id, score),...]
     
     ##############################
     # Not used in Final Submission
@@ -144,12 +144,12 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
         class_score = ipc_class_min_score
         subclass_score = ipc_subclass_min_score
         group_score = ipc_group_min_score
-        if doc_id in doc_id_to_ipc:
+        if doc_id in doc_id_to_ipc: # if the document has ipc categories
             (ipc_class_name, ipc_subclass_name, ipc_group_name) = doc_id_to_ipc[doc_id]
             class_score = ipc_class_scores[ipc_class_name]
             subclass_score = ipc_subclass_scores[ipc_subclass_name]
             group_score = ipc_group_scores[ipc_group_name]
-        # Weight Document's VSM Score with IPC Category Score
+        # Weight Document's VSM Score with IPC Category Score, with more weight on IPC scores
         new_score = old_score * ((class_score * subclass_score * group_score)**2)
         updated_results.append((doc_id, new_score, old_score))
     updated_results.sort(key=lambda x: (-x[1], -x[2]))
@@ -157,7 +157,6 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
     # Write results to output file
     output_line = reduce(lambda x, y: x + str(y[0]) + " ", updated_results, "").strip()
     output.write(output_line)
-
     output.close()
 
 # ============================
@@ -316,6 +315,13 @@ def generate_query_vector(query, dictionary):
 # Not used in Final Submission #
 ################################
 def rocchio_algorithm_query(initial_results, query, term_dict, docs_dict, doc_fields_dict, postings):
+    """
+    Executes the rocchio algorithm query based on a list results deemed to be relevant, then expands
+    this list by finding more related documents and adds these related documents to the list as well.
+    All documents not in this list are then deemed to be non-relevant.
+    Vectors are then generated for the original query, relevant documents and non-relevant documents,
+    and they are then combined and used to score each document.
+    """
     # Make use of Patent's Family and Cites fields to find relevant documents
     relevant_documents = find_more_relevant_documents(initial_results, doc_fields_dict, postings)
 
