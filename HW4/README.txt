@@ -77,6 +77,74 @@ calculates the cosine score of each document. process_query then returns the
 output of score_documents, which is a list of document ids, ordered by their
 cosine scores in decending order.
 
+
+
+# ========================================
+# Indexing
+# ========================================
+
+
+# ========================================
+# Search
+# ========================================
+
+
+# ========================================
+# Originality of ideas
+# ========================================
+
+Making use of IPC class, IPC subclass, IPC group
+treat ipc categories as documents
+
+Final submission is just ipc + vsm
+Stuff we tried: (LM, LM+VSM) with Rocchio
+Rocchio we tried a lot of different alpha, beta, gamma values
+also under rocchio we also varied how we defined the relevant and non-relevant documents
+top 10, top 50, top 100 as relevant docs
+non-relevant: documents not returned by the initial query, anything that's not the relevant doc as defined earlier
+
+all still sucked so we just stuck with ipc + vsm
+
+Experiment 1
+same weights for all ipc categories. accidentally squared the log of the numerator (tf) before dividing it by the normaliser -> oddly performed very well
+
+Experiment 2
+same weights, but fixed the accidental squaring, but it performed worse
+
+Experiment 3
+different weights fo each ipc category. didn't perform well
+
+combined VSM and rocchio with ipc weighting but it turned out worse than normal vsm + ipc weighting 
+maybe it's because...?
+
+Overview of your system, your system architecture
+indexing step indexes all the ipc categories
+normal term -> doc postings list
+pure vsm lel
+
+How your system deals with each of the optional components (query expansion, utilizing external resources, field/zone treatment
+query expansion not included in the final submission (commented out), since it performed worse when used at all (with and without ipc). describe how we did query expansion
+no external resources.
+query expansion with rocchio we used family and cites fields, buut didn't do as well so we commented it out for search
+
+field that we took note of ipc categories 
+zones that we took note of title and abstract -> concatenated and treated as the one single document. did not treat them as from different zones
+
+Run-time optimizations
+not using internet resources as a run-time optimisation LOL
+tf and idf both calculated during indexing phase and stored inside dictionary and postings file, rather than calculating during query time. save time during query, no need to perform the arithmetic operations.
+
+Allocation of work to each of the individual members of the project team.
+
+
+
+
+
+
+
+
+
+
 == Files included with this submission ==
 
 index.py:       Creates the dictionary and postings from the supplied corpus.
