@@ -44,7 +44,7 @@ the idf of each document during this indexing phase for the same reason as We do
 for the term frequencies, to make queries more efficient, at the cost of
 dictionary size.
 
-For the indexing process, we also created the Term to IPC class, Term to IPC subclass and Term to IPC group indices?s
+For the indexing process, we also created the Term to IPC class, Term to IPC subclass and Term to IPC group indices by using the same process as described above.
 
 # ========================================
 # Search
@@ -160,7 +160,7 @@ To make our query run faster, we did not use any online resources so that we do 
 Our tf and idf values are both calculated during indexing phase and stored inside dictionary and postings file, rather than calculating during query time. This saves time during query process, as there is no need to perform the arithmetic operations, which are usually the bottleneck in the querying process.
 
 4. Allocation of work to each of the individual members of the project team.
-A0121437N did all of the indexing, VSM model, implementation of the IPC implementation, code documentation.
+A0121437N did all of the indexing, VSM model, implementation of the IPC, code documentation.
 A0122081X did the language model, research on how to improve the MAF score and writing up the README.
 
 == Files included with this submission ==
