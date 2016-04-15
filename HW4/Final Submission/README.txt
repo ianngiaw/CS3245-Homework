@@ -50,8 +50,6 @@ the idf of each document during this indexing phase for the same reason as I do
 for the term frequencies, to make queries more efficient, at the cost of
 dictionary size.
 
-
-
 # ========================================
 # Search
 # ========================================
@@ -91,7 +89,6 @@ and get_document_normalized_term_freq, are passed to score_documents which
 calculates the cosine score of each document. process_query then returns the
 output of score_documents, which is a list of document ids, ordered by their
 cosine scores in decending order.
-
 
 # ========================================
 # Originality of ideas
@@ -134,28 +131,45 @@ We tried all three methods for evalution and method 1 returned the highest score
 
 Our retrieval system uses pure VSM coupled with the IPC categories and without Rocchio.
 
-In our indexing step, we indexed both the document id and the IPC categories.
+In our indexing step, we indexed both the document id and the IPC categories. <describe more about the indexing steps here>
 
-For the querying step, we which is basically taking the document's VSM query score, multiplied by the document's IPC Class's VSM query score, multiplied by the document's IPC Subclass's VSM query score, multiplied by the document's IPC Group's VSM query score.
+How we index the IPC scores? Also got use the normalisation. Not just raw frequency.
+
+For the querying step, we read out everything from the postings list into memory in the form of many Python dictionaries. For each query term, we do the following steps:
+1. Perform VSM querying to get the VSM query score for each document
+2. Multiply the current score with the document's IPC class score, IPC subclass score and IPC group score.
+
+As an illustration, document 1 has a VSM score of 0.3 for the query "Washing machine", IPC class score of 0.1, IPC subclass score of 0.7 and an IPC class score of 0.9.
+
+The final score would be 0.3 * 0.1 * 0.7 * 0.9 = 0.0189.
+
+Our reasoning for using the IPC class was because of the fact that a document containing 
+
+Take for example a document that does not contain the term "washing" but perhaps contain the term "laundering" would likely still be part of the same IPC class, for example class "D06" ("TREATMENT OF TEXTILES OR THE LIKE; LAUNDERING; FLEXIBLE MATERIALS NOT OTHERWISE PROVIDED FOR"). In this case, by using the IPC categories, the document containing "laundering" would be considered to be more highly relevant.
 
 The logic behind it is that documents that do not have the specified query terms may still be relevant to the query, and we are basing that relevance off their IPC Categories.
 
 1. How your system deals with each of the optional components (query expansion, utilizing external resources, field/zone treatment
 
-query expansion not included in the final submission (commented out), since it performed worse when used at all (with and without ipc). describe how we did query expansion
-no external resources.
+Query expansion is not included in the final submission, since it performed worse when used at all. Our initial query expansion was done by using the the Family and Cites fields of the patent, since we felt that if a patent is in the same family as other patents, the chances of them being related were very high. Similarly, if a patent cites another patent, the chances of them being similar were very high as well.
+
 query expansion with rocchio we used family and cites fields, buut didn't do as well so we commented it out for search
 
-2. Fields that we took note of ipc categories 
-Zones that we took note of title and abstract -> concatenated and treated as the one single document. did not treat them as from different zones
+2. Fields that we took note of 
+
+The fields that we made use of in the final submission were only the IPC categories. The IPC categories were used to improve our relevance measure. 
+
+The zones that we made use of were the Title and Abstract. We concatenated both zones and treated them as the main text of a single document. We did not treat them as separate zones.
 
 3. Run-time optimizations
-not using internet resources as a run-time optimisation LOL
-tf and idf both calculated during indexing phase and stored inside dictionary and postings file, rather than calculating during query time. save time during query, no need to perform the arithmetic operations.
+
+To make our query run faster, we did not use any online resources so that we do not need to factor in network latency for our querying process.
+
+Our tf and idf values are both calculated during indexing phase and stored inside dictionary and postings file, rather than calculating during query time. This saves time during query process, as there is no need to perform the arithmetic operations, which are usually the bottleneck in the querying process.
 
 4. Allocation of work to each of the individual members of the project team.
-Ian did all of the indexing, VSM model, implementation of the IPC implementation, code documentation
-MX did the language model, research on how to improve the MAF score and writing up the readme
+Ian did all of the indexing, VSM model, implementation of the IPC implementation, code documentation.
+MX did the language model, research on how to improve the MAF score and writing up the README.
 
 == Files included with this submission ==
 
