@@ -167,6 +167,10 @@ def execute_query(input_post_file, input_query_file, output_file, term_dict, doc
 # Not used in Final Submission #
 ################################
 def language_model_query(query, docs_dict, term_dict, postings):
+    """
+    Uses the Language Model to get the relevant document ids
+    Returns a list of of doc_ids in descending order of relevance
+    """
     scored_docs = {}
     probability = 1 # P(t|d)
     lambda_weight = 0.5 # hard-coded, probably need to find the optimal weight based on how long the query is
@@ -195,12 +199,10 @@ def language_model_query(query, docs_dict, term_dict, postings):
                 scored_docs[doc] *= probability
             else:
                 scored_docs[doc] = probability
-
-    # print scored_docs
+                
     output = [(k, v) for k, v in scored_docs.items()]
     output.sort(key=lambda x: x[1], reverse=True)
     return output
-    # return sorted([(k,v) for k, v in scored_docs.items()], lambda x: x[1], reverse=True)
 
 ################################
 # Not used in Final Submission #
